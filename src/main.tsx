@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './ui/App';
 import { AppProvider } from './ui/AppContext';
+import '@fontsource/bebas-neue/latin-400.css';
+import '@fontsource/metal-mania/latin-400.css';
 import './ui/styles.css';
 import { registerOffline } from './offline/register';
 

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { engine, type Handle } from '../../audio/engine';
 import { TunerTracker, type TunerReading } from '../../audio/tuner';
-import { openMidi, pitchClassName } from '../../domain/tuning';
+import { pitchClassName } from '../../domain/tuning';
+import { presetOpenMidi, tuningPreset, TUNINGS } from '../../domain/tunings';
+import type { TuningChoice } from '../../storage/types';
 import type { StringNumber } from '../../domain/score';
 import { useApp } from '../AppContext';
 import { PageHead } from '../App';
@@ -11,6 +13,46 @@ import { Callout, Segmented } from '../kit';
 import { Icon } from '../icons';
 
 const ORDER: StringNumber[] = [6, 5, 4, 3, 2, 1];
+
+/** A 3+3 headstock seen from the front. Decorative mirror of the string buttons below (which are the accessible controls). */
+function Headstock({ str, tuned, names, onPick, locked }: { str: StringNumber; tuned: Set<StringNumber>; names: Record<StringNumber, string>; onPick: (s: StringNumber) => void; locked: boolean }) {
+  const posts: Record<StringNumber, { x: number; y: number; side: -1 | 1 }> = {
+    4: { x: 82, y: 72, side: -1 }, 5: { x: 82, y: 132, side: -1 }, 6: { x: 82, y: 192, side: -1 },
+    3: { x: 158, y: 72, side: 1 }, 2: { x: 158, y: 132, side: 1 }, 1: { x: 158, y: 192, side: 1 },
+  };
+  const nutX = (s: StringNumber) => 96 + (6 - s) * 9.6;
+  return (
+    <svg className="headstock" viewBox="0 0 240 300" aria-hidden="true">
+      <defs>
+        <linearGradient id="hs-wood" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#6b4329" />
+          <stop offset="1" stopColor="#3b2416" />
+        </linearGradient>
+      </defs>
+      <path d="M66 22q54-26 108 0l8 220q-4 18-20 24H78q-16-6-20-24z" fill="url(#hs-wood)" stroke="#1b1320" strokeWidth="3" />
+      <path d="M92 32q28-10 56 0" stroke="#e8c48a" strokeWidth="2" fill="none" opacity="0.6" />
+      <rect x="88" y="262" width="64" height="8" rx="2" fill="#f4ecd8" />
+      <rect x="86" y="270" width="68" height="30" fill="#4a2e1d" />
+      {ORDER.map((s) => {
+        const p = posts[s];
+        const on = s === str;
+        const knobX = p.x + p.side * 58;
+        const color = tuned.has(s) ? 'var(--correct)' : on ? (locked ? 'var(--correct)' : 'var(--primary)') : '#d9d4cc';
+        return (
+          <g key={s} className="peg" onClick={() => onPick(s)}>
+            <line x1={p.x} y1={p.y} x2={nutX(s)} y2={300} stroke={on ? 'var(--hot-1)' : s >= 3 ? '#d6b06a' : '#e8eaed'} strokeWidth={on ? 3.2 : 1 + (s - 1) * 0.35} />
+            {on && <line x1={p.x} y1={p.y} x2={nutX(s)} y2={300} stroke="var(--hot-1)" strokeWidth="10" opacity="0.25" />}
+            <rect x={Math.min(p.x, knobX)} y={p.y - 4} width={Math.abs(knobX - p.x)} height="8" fill="#9aa0a6" />
+            <circle cx={p.x} cy={p.y} r="7" fill="#c9ccd1" stroke="#1b1320" strokeWidth="2" />
+            <circle className="knob" cx={knobX} cy={p.y} r="22" fill={color} stroke="#1b1320" strokeWidth="2.5" />
+            <text x={knobX} y={p.y + 7} textAnchor="middle" fontSize="20" fontWeight="900" fill={tuned.has(s) || on ? '#fff' : '#1b1320'}>{names[s]}</text>
+            <text x={knobX} y={p.y + 36} textAnchor="middle" fontSize="12" fontWeight="700" fill="var(--muted)">{tuned.has(s) ? '✓' : s}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 function Gauge({ cents, locked }: { cents: number | null; locked: boolean }) {
   const c = cents === null ? 0 : Math.max(-50, Math.min(50, cents));
@@ -37,22 +79,27 @@ function Gauge({ cents, locked }: { cents: number | null; locked: boolean }) {
 }
 
 export function TunerScreen() {
-  const { settings, mic } = useApp();
+  const { settings, mic, updateSettings } = useApp();
+  const tuning = settings.tuning;
+  const openMidi = (s: StringNumber) => presetOpenMidi(tuning, s);
   const [mode, setMode] = useState<'string' | 'chromatic'>('string');
   const [str, setStr] = useState<StringNumber>(6);
   const [reading, setReading] = useState<TunerReading | null>(null);
   const [tuned, setTuned] = useState<Set<StringNumber>>(new Set());
   const [refPlaying, setRefPlaying] = useState(false);
-  const tracker = useMemo(() => new TunerTracker({ mode: 'string', targetMidi: openMidi(6), targetString: 6 }), []);
+  const tracker = useMemo(() => new TunerTracker({ mode: 'string', targetMidi: 40, targetString: 6 }), []);
   const refHandle = useRef<Handle | null>(null);
   const lastUi = useRef(0);
   const lockedSince = useRef<number | null>(null);
 
   useEffect(() => {
-    tracker.setOptions(mode === 'string' ? { mode, targetMidi: openMidi(str), targetString: str } : { mode });
+    const target = presetOpenMidi(tuning, str);
+    // String names in messages ("string 6 (low E)") describe standard tuning only.
+    tracker.setOptions(mode === 'string' ? { mode, targetMidi: target, ...(tuning === 'standard' ? { targetString: str } : {}) } : { mode });
     setReading(null);
     lockedSince.current = null;
-  }, [mode, str, tracker]);
+  }, [mode, str, tracker, tuning]);
+  useEffect(() => setTuned(new Set()), [tuning]);
 
   useEffect(() => {
     return engine.on('frame', (f) => {
@@ -123,6 +170,15 @@ export function TunerScreen() {
       ) : (
         <ListenControl purpose="measure each string's pitch" />
       )}
+      <label className="field">
+        <span>Tuning</span>
+        <select className="input" value={tuning} onChange={(e) => void updateSettings({ tuning: e.target.value as TuningChoice })}>
+          {TUNINGS.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      </label>
+      {tuning !== 'standard' && (
+        <Callout kind="info">{tuningPreset(tuning).blurb} Lessons and the note checker expect standard tuning — tune back before a lesson.</Callout>
+      )}
       {settings.advanced && (
         <Segmented label="Tuner mode" value={mode} options={[{ value: 'string', label: 'Guitar strings' }, { value: 'chromatic', label: 'Any note' }]} onChange={setMode} />
       )}
@@ -139,6 +195,7 @@ export function TunerScreen() {
       </div>
       {mode === 'string' && (
         <>
+          <Headstock str={str} tuned={tuned} locked={locked} onPick={setStr} names={{ 1: pitchClassName(openMidi(1)), 2: pitchClassName(openMidi(2)), 3: pitchClassName(openMidi(3)), 4: pitchClassName(openMidi(4)), 5: pitchClassName(openMidi(5)), 6: pitchClassName(openMidi(6)) }} />
           <div className="string-chips" role="group" aria-label="String to tune">
             {ORDER.map((s) => (
               <button key={s} type="button" aria-pressed={str === s} className={tuned.has(s) ? 'tuned' : ''} onClick={() => setStr(s)}>

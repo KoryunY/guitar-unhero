@@ -13,6 +13,7 @@ import type { Judgment, TargetInstance } from '../../assessment/types';
 import { BEGINNER_POLICY } from '../../assessment/types';
 import { computeStats, suggestNext, type InputSource, type PhraseStats } from '../../assessment/summary';
 import { backingPolicy, guidePolicy } from '../../assessment/guidePolicy';
+import { chordMidis } from '../../domain/tuning';
 import type { TimeMap } from '../../transport/timemap';
 import type { AudioEngine } from '../../audio/engine';
 import type { AttackObservation } from '../../audio/observations';
@@ -58,6 +59,8 @@ export class PracticeController {
   private summarized = false;
 
   readonly backing: AudioBuffer | null;
+  /** Time-stretched copies of the backing (same pitch) by speed. */
+  private readonly stretched = new Map<number, AudioBuffer>();
   judgments: Judgment[] = [];
   /** Latest judgment per `${loopIteration}:${eventId}` for drawing. */
   readonly judgmentByNote = new Map<string, Judgment>();
@@ -224,6 +227,17 @@ export class PracticeController {
     this.transport.seek(target);
   }
 
+  /** Provide a slowed-down (pitch-preserving) copy of the backing for `rate`. */
+  setStretchedBacking(rate: number, buffer: AudioBuffer): void {
+    this.stretched.set(rate, buffer);
+    this.transport.backingRates = new Set([1, ...this.stretched.keys()]);
+    this.notify();
+  }
+
+  hasBackingAt(rate: number): boolean {
+    return rate === 1 || this.stretched.has(rate);
+  }
+
   setRate(rate: number): void {
     this.transport.setRate(rate);
   }
@@ -277,8 +291,12 @@ export class PracticeController {
       if (!this.backing || item.endContextTime === undefined) return null;
       const bp = this.backingState;
       if (!bp.audible) return null;
+      const rate = this.transport.rate;
+      const buf = rate === 1 ? this.backing : this.stretched.get(rate);
+      if (!buf) return null;
       if (bp.blocksAssessment) this.engine.blockAssessment(item.contextTime, item.endContextTime + 0.35, 'backing_audible_on_speakers');
-      return this.engine.playBacking(this.backing, item.contextTime, item.sourceSec, item.endContextTime);
+      // A stretched copy runs 1/rate times longer: recording second s sits at s / rate.
+      return this.engine.playBacking(buf, item.contextTime, item.sourceSec / rate, item.endContextTime);
     }
     if (item.kind === 'note') {
       if (!this.guide.guideAudible || !item.event) return null;
@@ -287,6 +305,14 @@ export class PracticeController {
       const h = this.engine.playNote(item.event.pitchMidi, item.contextTime, 'guide', dur);
       // Guide audible while assessing (headphones): nothing to block. Listen mode: not assessed anyway.
       return h;
+    }
+    if (item.kind === 'strum') {
+      // Chord accompaniment follows the guide policy: never audible to the mic while it is checking notes.
+      if (!this.guide.guideAudible || !item.strum) return null;
+      const st = item.strum;
+      const midis = chordMidis(st.chord.frets, this.transport.score.instrument.capo);
+      const dur = (this.transport.tickToSec(st.tick + st.durationTicks) - this.transport.tickToSec(st.tick)) / this.transport.rate + 0.25;
+      return this.engine.strum(midis, item.contextTime, { direction: st.direction, light: st.light, mute: st.mute, maxDur: dur });
     }
     if (item.kind === 'click' && !this.opts.metronomeOn) return null;
     return this.engine.playClick(item.contextTime, item.accent || item.kind === 'countIn');

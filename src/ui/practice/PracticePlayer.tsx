@@ -13,6 +13,8 @@ import { Highway } from './Highway';
 import { SummaryCard } from './SummaryCard';
 import type { PracticeSummaryRecord } from '../../storage/types';
 import { Icon } from '../icons';
+import { ChordLane } from './ChordLane';
+import { stretchedBacking } from '../../audio/stretchCache';
 import { Callout, Segmented, Sheet, ToggleRow } from '../kit';
 
 const MODE_OPTS: { value: PracticeMode; label: string }[] = [
@@ -83,6 +85,20 @@ export function PracticePlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [score, map, backing],
   );
+
+  // Slow practice with the original recording: make a pitch-preserving stretched copy per speed.
+  const [stretchState, setStretchState] = useState<'idle' | 'working' | 'failed'>('idle');
+  const rateNow = controller.transport.rate;
+  useEffect(() => {
+    if (!backing || rateNow === 1 || controller.hasBackingAt(rateNow)) return;
+    let cancelled = false;
+    setStretchState('working');
+    stretchedBacking(backing, rateNow).then(
+      (b) => { if (!cancelled) { controller.setStretchedBacking(rateNow, b); setStretchState('idle'); } },
+      () => !cancelled && setStretchState('failed'),
+    );
+    return () => { cancelled = true; };
+  }, [backing, rateNow, controller]);
 
   useEffect(() => {
     const off = controller.subscribe(force);
@@ -209,7 +225,12 @@ export function PracticePlayer({
         </div>
       )}
       {backingState.notice && <Callout kind="warn" testId="backing-notice">{backingState.notice}</Callout>}
-      {backing && t.rate !== 1 && backingOn && <Callout kind="info">The backing track only plays at 100 % speed (no time-stretching yet).</Callout>}
+      {settings.instrument === 'electric' && inputSource === 'microphone' && t.mode !== 'listen' && (
+        <p className="t-caption" style={{ margin: 0 }}>Electric tip: use a clean tone (no distortion) while notes are checked — distortion adds extra pitches the checker can’t untangle. Put the mic near the amp speaker.</p>
+      )}
+      {backing && t.rate !== 1 && backingOn && !controller.hasBackingAt(t.rate) && (
+        <Callout kind="info">{stretchState === 'working' ? `Making a ${Math.round(t.rate * 100)} % version of the recording (same pitch)…` : stretchState === 'failed' ? 'The slowed-down recording could not be made in this browser; the beat still plays.' : 'Preparing the slowed-down recording…'}</Callout>
+      )}
 
       <div className="upnext" aria-live="off" data-testid="upnext">
         {upNext ? (
@@ -232,13 +253,15 @@ export function PracticePlayer({
             </>
           )
         ) : (
-          <div className="where">{t.state === 'completed' ? 'Finished — see how it went below.' : 'Press play to start.'}</div>
+          <div className="where">{t.state === 'completed' ? 'Finished — see how it went below.' : !score.events.length && running ? 'Strum along with the chords' : 'Press play to start.'}</div>
         )}
         <div className="spacer" />
         <span className="t-small muted" role="status" aria-live="polite" data-testid="transport-state">{stateText[t.state] ?? t.state}</span>
       </div>
 
-      <Highway controller={controller} leftHanded={settings.handedness === 'left'} reducedMotion={reducedMotion} lookaheadSec={settings.lookaheadSec} cueLevel={cueLevel} />
+      {!!score.chords?.length && <ChordLane score={score} tick={Math.max(0, t.secToTick(pos))} leftHanded={settings.handedness === 'left'} playing={running} />}
+
+      {score.events.length > 0 && <Highway controller={controller} leftHanded={settings.handedness === 'left'} reducedMotion={reducedMotion} lookaheadSec={settings.lookaheadSec} cueLevel={cueLevel} />}
 
       <div className="feedback-line" role="status" aria-live="polite" data-testid="feedback">
         {fbIcon && <Icon name={fbIcon} size={24} className={lastJ ? `state-${lastJ.state}` : ''} />}

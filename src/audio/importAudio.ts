@@ -1,17 +1,21 @@
 /**
- * Local audio import with the M3 limits (master spec §7.2): ≤ 25 MiB encoded,
- * ≤ 180 s decoded, ≤ 2 channels, non-empty. Nothing is uploaded; the original
- * file is kept unchanged as a Blob, decoded once, and hashed for provenance.
+ * Local audio import: whole songs up to 15 minutes / 80 MiB encoded. Nothing is
+ * uploaded; the original file is kept unchanged as a Blob and hashed for
+ * provenance. For playback the song is decoded once to mono at 32 kHz (≈ 7.7 MB
+ * per minute in memory, so a long song still fits on a phone); analysis uses a
+ * 22.05 kHz mono copy rendered from that.
  */
-export const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
-export const MAX_IMPORT_SECONDS = 180;
+export const MAX_IMPORT_BYTES = 80 * 1024 * 1024;
+export const MAX_IMPORT_SECONDS = 15 * 60;
+export const PLAYBACK_RATE = 32000;
+export const ANALYSIS_RATE = 22050;
 
 export type ImportFailure = 'unsupported_format' | 'too_large' | 'too_long' | 'decode_failed' | 'internal_error';
 
 export const IMPORT_FAILURE_TEXT: Record<ImportFailure, string> = {
   unsupported_format: 'This file type cannot be played here. Try WAV or MP3.',
-  too_large: 'The file is larger than 25 MB. Trim it to the part you want to practise (15–30 seconds is ideal).',
-  too_long: 'The recording is longer than 3 minutes. Trim it to the part you want to practise.',
+  too_large: 'The file is larger than 80 MB. Try an MP3 or M4A version of the song.',
+  too_long: 'The recording is longer than 15 minutes. Trim it, or import the part you want to learn.',
   decode_failed: 'The file could not be decoded. It may be damaged, copy-protected (DRM), or in an unsupported format.',
   internal_error: 'Something went wrong while reading the file. Please try again.',
 };
@@ -26,13 +30,46 @@ export interface DecodedImport {
 export function precheck(file: { size: number; type: string; name: string }): ImportFailure | null {
   if (file.size <= 0) return 'decode_failed';
   if (file.size > MAX_IMPORT_BYTES) return 'too_large';
-  const okType = !file.type || file.type.startsWith('audio/') || /\.(wav|mp3|m4a|aac|ogg|oga|opus|flac|webm)$/i.test(file.name);
+  const okType = !file.type || file.type.startsWith('audio/') || file.type === 'video/mp4' || file.type === 'video/webm' || /\.(wav|mp3|m4a|mp4|aac|ogg|oga|opus|flac|webm|aif|aiff)$/i.test(file.name);
   return okType ? null : 'unsupported_format';
 }
 
 export async function sha256Hex(data: ArrayBuffer): Promise<string> {
   const d = await crypto.subtle.digest('SHA-256', data);
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Decode for playback: mono at PLAYBACK_RATE when OfflineAudioContext exists
+ * (it resamples while decoding), otherwise with the given context.
+ */
+async function decodeForPlayback(fallback: BaseAudioContext, data: ArrayBuffer): Promise<AudioBuffer> {
+  const Off = (globalThis as { OfflineAudioContext?: typeof OfflineAudioContext }).OfflineAudioContext;
+  if (!Off) return fallback.decodeAudioData(data);
+  const off = new Off(1, 1, PLAYBACK_RATE);
+  const decoded = await off.decodeAudioData(data);
+  if (decoded.numberOfChannels === 1) return decoded;
+  const mono = off.createBuffer(1, decoded.length, decoded.sampleRate);
+  mono.getChannelData(0).set(monoMix(decoded));
+  return mono;
+}
+
+/** Decode a stored song file for playback (same memory-saving path as import). */
+export async function decodeBlobForPlayback(ctx: BaseAudioContext, blob: Blob): Promise<AudioBuffer> {
+  return decodeForPlayback(ctx, await blob.arrayBuffer());
+}
+
+/** 22.05 kHz mono copy for song analysis (rendered, so it is properly low-pass filtered). */
+export async function analysisPcm(buffer: AudioBuffer): Promise<Float32Array> {
+  const Off = (globalThis as { OfflineAudioContext?: typeof OfflineAudioContext }).OfflineAudioContext;
+  if (!Off || buffer.sampleRate === ANALYSIS_RATE) return monoMix(buffer);
+  const off = new Off(1, Math.max(1, Math.ceil(buffer.duration * ANALYSIS_RATE)), ANALYSIS_RATE);
+  const src = off.createBufferSource();
+  src.buffer = buffer;
+  src.connect(off.destination);
+  src.start();
+  const out = await off.startRendering();
+  return out.getChannelData(0);
 }
 
 export async function decodeImport(ctx: BaseAudioContext, file: File): Promise<{ ok: true; value: DecodedImport } | { ok: false; reason: ImportFailure }> {
@@ -48,12 +85,11 @@ export async function decodeImport(ctx: BaseAudioContext, file: File): Promise<{
   let buffer: AudioBuffer;
   try {
     // decodeAudioData detaches its input; pass a copy.
-    buffer = await ctx.decodeAudioData(data.slice(0));
+    buffer = await decodeForPlayback(ctx, data.slice(0));
   } catch {
     return { ok: false, reason: 'decode_failed' };
   }
   if (buffer.length === 0 || buffer.numberOfChannels < 1) return { ok: false, reason: 'decode_failed' };
-  if (buffer.numberOfChannels > 2) return { ok: false, reason: 'unsupported_format' };
   if (buffer.duration > MAX_IMPORT_SECONDS) return { ok: false, reason: 'too_long' };
   return { ok: true, value: { buffer, sha256, bytes: file.size, mime: file.type || 'audio/*' } };
 }

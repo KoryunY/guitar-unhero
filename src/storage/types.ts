@@ -5,7 +5,19 @@ import type { PracticeMode } from '../transport/transport';
 export type InputMode = 'microphone' | 'simulation' | 'none';
 export type OutputRoute = 'headphones' | 'speakers' | 'unknown';
 
+export type ThemeChoice = 'system' | 'light' | 'stage';
+export type VoiceChoice = 'plain' | 'funny' | 'metal';
+export type InstrumentChoice = 'acoustic' | 'electric' | 'classical';
+export type TuningChoice = 'standard' | 'drop_d' | 'half_step_down' | 'd_standard' | 'open_g' | 'open_d' | 'dadgad';
+
 export interface Settings {
+  /** Colour theme: follow the system, daylight, or the dark "stage" look. */
+  theme: ThemeChoice;
+  /** Coach personality. Jokes are extra lines; instructions stay plain. */
+  voice: VoiceChoice;
+  instrument: InstrumentChoice;
+  /** Tuner target tuning (lessons and scores use standard tuning). */
+  tuning: TuningChoice;
   /** Show developer/advanced tools (mic lab, calibration, backup/restore, details). */
   advanced: boolean;
   /** Experimental camera self-view (off by default). */
@@ -30,6 +42,10 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  theme: 'system',
+  voice: 'funny',
+  instrument: 'acoustic',
+  tuning: 'standard',
   advanced: false,
   cameraLab: false,
   handedness: 'right',
@@ -143,7 +159,13 @@ export interface SongRecord {
   versions: SongVersionRef[];
   /** Alignment of the recording to the score (tick ↔ recording second). */
   anchors: { tick: number; sourceSec: number }[];
-  alignment: 'none' | 'tapped' | 'reviewed';
+  alignment: 'none' | 'tapped' | 'reviewed' | 'auto';
+  /** Easy / medium / full arrangements (any-song flow), latest version of each. */
+  levels?: Partial<Record<'easy' | 'medium' | 'full', { arrangementId: string; version: number }>>;
+  /** Where the notes came from. */
+  source?: 'recording' | 'tab' | 'chord_sheet' | 'midi' | 'musicxml' | 'guitar_pro' | 'written' | 'score_file';
+  /** Summary of the automatic analysis of a recording. */
+  analysis?: { bpm: number; key: string; chordCount: number; noteCount: number; warnings: string[]; analyzedAt: string; reviewed: boolean };
   /** Raw transcription leftovers to show as uncertain regions in review. */
   uncertain: { onsetSec: number; reason: string }[];
   createdAt: string;

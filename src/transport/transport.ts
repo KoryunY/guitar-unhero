@@ -6,7 +6,7 @@
  * idle → ready → countIn → playing ↔ paused → completed;
  * playing → waitingForTarget in wait mode; active → deviceLost / error.
  */
-import type { NoteEvent, Score } from '../domain/score';
+import type { ChordEvent, NoteEvent, Score } from '../domain/score';
 import { scoreBpm, sortEvents, PPQ } from '../domain/score';
 import { SegmentHistory, contextAt, sourceAt, type Segment } from './tempo';
 import { ConstantTempoMap, type TimeMap } from './timemap';
@@ -35,9 +35,48 @@ export interface TransportSegment extends Segment {
   skipStartBeat: boolean;
 }
 
+/** One strum of a chord-track shape (gu-score/2). Played by the app, never assessed. */
+export interface StrumEvent {
+  key: string;
+  tick: number;
+  /** Ticks until the next strum or the chord's end. */
+  durationTicks: number;
+  direction: 'down' | 'up';
+  light: boolean;
+  mute: boolean;
+  chord: ChordEvent;
+}
+
+/** Expand a chord track into strums: patterns are an eighth-note grid that repeats each 4/4 bar. */
+export function expandStrums(chords: readonly ChordEvent[] | undefined): StrumEvent[] {
+  const out: StrumEvent[] = [];
+  const bar = 4 * PPQ, slot = PPQ / 2;
+  for (const c of chords ?? []) {
+    const end = c.startTick + c.durationTicks;
+    if (!c.pattern) {
+      out.push({ key: `${c.id}:0`, tick: c.startTick, durationTicks: c.durationTicks, direction: 'down', light: false, mute: false, chord: c });
+      continue;
+    }
+    const n = c.pattern.length;
+    const first = Math.floor(c.startTick / slot) * slot;
+    const hits: { tick: number; ch: string }[] = [];
+    for (let t = first; t < end; t += slot) {
+      if (t < c.startTick) continue;
+      const ch = c.pattern[Math.floor((t % bar) / slot) % n]!;
+      if (ch !== '-') hits.push({ tick: t, ch });
+    }
+    hits.forEach((h, i) => {
+      const next = hits[i + 1]?.tick ?? end;
+      out.push({ key: `${c.id}:${h.tick}`, tick: h.tick, durationTicks: next - h.tick, direction: h.ch === 'U' || h.ch === 'u' ? 'up' : 'down', light: h.ch === 'd' || h.ch === 'u', mute: h.ch === 'x', chord: c });
+    });
+  }
+  return out;
+}
+
 export interface ScheduledItem {
   key: string;
-  kind: 'note' | 'click' | 'countIn' | 'backing';
+  kind: 'note' | 'click' | 'countIn' | 'backing' | 'strum';
+  strum?: StrumEvent;
   /** For 'backing': context time at which the recording must stop (segment end). */
   endContextTime?: number;
   contextTime: number;
@@ -65,6 +104,7 @@ const RUNNING: ReadonlySet<TransportState> = new Set(['countIn', 'playing', 'wai
 export class Transport {
   readonly score: Score;
   readonly events: readonly NoteEvent[];
+  readonly strums: readonly StrumEvent[];
   readonly bpm: number;
   /** Nominal beat length at the start of the score (local beats come from the time map). */
   readonly beatSec: number;
@@ -80,6 +120,8 @@ export class Transport {
   countInBeats = 4;
   /** Schedule a backing recording (source seconds = recording seconds) per segment; only at rate 1. */
   backingEnabled = false;
+  /** Speeds at which a (time-stretched) backing recording is available. */
+  backingRates: ReadonlySet<number> = new Set([1]);
   /** Lead time before the first count-in click, allowing the scheduler to fill. */
   startDelay = 0.12;
   /** Delay before continuing after a recognized wait-mode target. */
@@ -98,6 +140,7 @@ export class Transport {
   constructor(score: Score, now: () => number, map?: TimeMap) {
     this.score = score;
     this.events = sortEvents(score.events);
+    this.strums = expandStrums(score.chords);
     this.map = map ?? new ConstantTempoMap(scoreBpm(score));
     this.startSec = this.map.tickToSec(0);
     this.bpm = this.map.bpmAt(this.startSec);
@@ -392,7 +435,7 @@ export class Transport {
       const segStartC = seg.c0;
       const segEndC = contextAt(seg, seg.endS);
       if (segEndC < c1 || segStartC >= c2) continue;
-      if (this.backingEnabled && this.rate === 1 && seg.c0 >= c1 && seg.c0 < c2 && seg.endS > seg.s0) {
+      if (this.backingEnabled && this.backingRates.has(this.rate) && seg.c0 >= c1 && seg.c0 < c2 && seg.endS > seg.s0) {
         items.push({
           key: `${this.attemptId}:${seg.epoch}:${seg.loopIteration}:backing`,
           kind: 'backing',
@@ -423,6 +466,24 @@ export class Transport {
               event: ev,
             });
           }
+        }
+      }
+      for (const st of this.strums) {
+        const s = this.map.tickToSec(st.tick);
+        if (s < seg.s0 - 1e-9 || s >= seg.endS - 1e-9) continue;
+        const t = contextAt(seg, s);
+        if (t >= c1 && t < c2) {
+          items.push({
+            key: `${this.attemptId}:${seg.epoch}:${seg.loopIteration}:s${st.key}`,
+            kind: 'strum',
+            contextTime: t,
+            sourceSec: s,
+            accent: false,
+            attemptId: this.attemptId,
+            epoch: seg.epoch,
+            loopIteration: seg.loopIteration,
+            strum: st,
+          });
         }
       }
       const firstBeat = Math.max(0, Math.ceil(this.map.secToTick(seg.s0) / PPQ - 1e-9));

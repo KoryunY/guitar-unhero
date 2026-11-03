@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { engine, type Handle } from '../../audio/engine';
-import { decodeImport, IMPORT_FAILURE_TEXT, MAX_IMPORT_SECONDS, monoMix, waveformPeaks } from '../../audio/importAudio';
+import { decodeBlobForPlayback, decodeImport, IMPORT_FAILURE_TEXT, MAX_IMPORT_SECONDS, monoMix, waveformPeaks } from '../../audio/importAudio';
 import { buildCandidate, estimateTempo, quantize, type RawTranscription } from '../../audio/transcribe';
 import type { Rights, Score } from '../../domain/score';
 import { blankScore, commitVersion, setTempo } from '../../domain/edit';
@@ -17,6 +17,7 @@ import { Callout, Segmented, toast, TopBar } from '../kit';
 import { ScoreEditor } from '../components/ScoreEditor';
 import { PracticePlayer } from '../practice/PracticePlayer';
 import { songStatus } from './PracticeLibrary';
+import { AnalyzeView, LevelPlay } from './SongPlay';
 
 type RightsChoice = 'own' | 'permission' | 'unsure';
 const RIGHTS: Record<RightsChoice, { title: string; sub: string; rights: () => Rights }> = {
@@ -126,7 +127,7 @@ function NewSong() {
       </div>
       {kind !== 'notes' && (
         <label className="field">
-          <span>{kind === 'recording' ? `Audio file (WAV or MP3, up to 25 MB and ${MAX_IMPORT_SECONDS / 60} minutes)` : 'Score file'}</span>
+          <span>{kind === 'recording' ? `A song (MP3, M4A, WAV…, up to ${MAX_IMPORT_SECONDS / 60} minutes)` : 'Score file'}</span>
           <input ref={fileRef} type="file" className="input" style={{ paddingTop: 10 }} accept={kind === 'recording' ? 'audio/*,.wav,.mp3,.m4a,.ogg,.flac' : 'application/json,.json'} data-testid="song-file" />
         </label>
       )}
@@ -154,6 +155,7 @@ function NewSong() {
 
 // ---------------------------------------------------------------- workspace
 function SongWorkspace({ songId, view }: { songId: string; view: string }) {
+  const { settings } = useApp();
   const [song, setSong] = useState<SongRecord | null | undefined>(undefined);
   const [asset, setAsset] = useState<AssetRecord | null>(null);
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
@@ -179,7 +181,7 @@ function SongWorkspace({ songId, view }: { songId: string; view: string }) {
         if (!b) {
           try {
             const ctx = await engine.ensureContext();
-            b = await ctx.decodeAudioData(await a.blob.arrayBuffer());
+            b = await decodeBlobForPlayback(ctx, a.blob);
             bufferCache.set(a.id, b);
           } catch {
             setError('The saved recording could not be decoded in this browser.');
@@ -224,11 +226,34 @@ function SongWorkspace({ songId, view }: { songId: string; view: string }) {
   const tabs = [
     { value: 'play', label: 'Play' },
     { value: 'notes', label: 'Notes' },
+    ...(asset ? [{ value: 'analyze', label: 'Work it out' }] : []),
     ...(asset ? [{ value: 'timing', label: 'Timing' }] : []),
-    { value: 'easy', label: 'Easy' },
-    ...(asset ? [{ value: 'transcribe', label: 'To notes' }] : []),
+    ...(song.levels ? [] : [{ value: 'easy', label: 'Easy' }]),
+    ...(asset && settings.advanced ? [{ value: 'transcribe', label: 'To notes' }] : []),
     { value: 'more', label: 'More' },
   ];
+  const markReviewed = async (levelScores: Score[]) => {
+    const cur = songRef.current;
+    if (!cur) return;
+    let versions = [...cur.versions];
+    const levels = { ...(cur.levels ?? {}) };
+    for (const sc of levelScores) {
+      const prevCount = versions.filter((v) => v.arrangementId === sc.arrangementId).length;
+      const next: Score = { ...sc, version: prevCount + 1, parent: { arrangementId: sc.arrangementId, version: sc.version }, role: sc.arrangementLevel === 'full' ? 'reviewed_part' : 'simplified_arrangement', provenance: { ...sc.provenance, reviewStatus: 'user_reviewed', reviewer: 'the learner (listened and confirmed)' } };
+      await saveArrangement(next);
+      setScores((m) => new Map(m).set(`${next.arrangementId}@${next.version}`, next));
+      versions = [...versions, { arrangementId: next.arrangementId, version: next.version, role: next.role, title: next.title, createdAt: new Date().toISOString(), note: 'Reviewed: sounds right' }];
+      if (sc.arrangementLevel) levels[sc.arrangementLevel] = { arrangementId: next.arrangementId, version: next.version };
+    }
+    await update({ versions, levels, ...(cur.analysis ? { analysis: { ...cur.analysis, reviewed: true } } : {}) });
+    toast('Thanks! The app now checks the tune you play.');
+  };
+  const levelsDone = async (next: SongRecord) => {
+    songRef.current = next;
+    setSong(next);
+    await saveSong(next);
+    await reload();
+  };
 
   return (
     <section className="stack">
@@ -239,13 +264,15 @@ function SongWorkspace({ songId, view }: { songId: string; view: string }) {
       <div className="row">
         <span className="badge">{songStatus(song)}</span>
         {asset && <span className="badge"><Icon name="wave" size={12} /> {asset.durationSec.toFixed(0)} s recording</span>}
-        {song.alignment !== 'none' && <span className="badge good">Lined up with the beat</span>}
+        {song.alignment !== 'none' && <span className="badge good">{song.alignment === 'auto' ? 'Beat found automatically' : 'Lined up with the beat'}</span>}
+        {song.analysis && <span className="badge">{song.analysis.key} · {song.analysis.bpm} BPM</span>}
       </div>
       <div style={{ overflowX: 'auto' }}>
         <Segmented label="Song sections" value={tabs.some((t) => t.value === view) ? view : 'play'} options={tabs} onChange={(v) => navigate('song', song.id, v)} testId="song-tabs" />
       </div>
       {error && <Callout kind="bad">{error}</Callout>}
-      {view === 'play' && <PlayView song={song} scores={scores} buffer={buffer} />}
+      {view === 'play' && (song.levels ? <LevelPlay song={song} scores={scores} buffer={buffer} onReview={markReviewed} /> : <PlayView song={song} scores={scores} buffer={buffer} />)}
+      {view === 'analyze' && asset && <AnalyzeView song={song} asset={asset} buffer={buffer} onDone={levelsDone} />}
       {view === 'notes' && <NotesView song={song} main={main} buffer={buffer} asset={asset} onCreate={addVersion} />}
       {view === 'timing' && asset && <TimingView song={song} asset={asset} buffer={buffer} main={main} update={update} addVersion={addVersion} />}
       {view === 'easy' && <EasyView main={main} onSave={addVersion} />}

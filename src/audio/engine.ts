@@ -189,16 +189,17 @@ export class AudioEngine {
   }
 
   /** Start a fresh one-shot source (AudioBufferSourceNode cannot be restarted). */
-  private oneShot(buffer: AudioBuffer, when: number, bus: Bus, maxDur?: number): Handle {
+  private oneShot(buffer: AudioBuffer, when: number, bus: Bus, maxDur?: number, gain = 1): Handle {
     const ctx = this.ctx!;
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     const g = ctx.createGain();
+    g.gain.value = gain;
     src.connect(g).connect(this.buses[bus]!);
     const t = Math.max(when, ctx.currentTime);
     src.start(t);
     if (maxDur) {
-      g.gain.setValueAtTime(1, t + maxDur);
+      g.gain.setValueAtTime(gain, t + maxDur);
       g.gain.linearRampToValueAtTime(0, t + maxDur + 0.04);
       src.stop(t + maxDur + 0.05);
     }
@@ -227,6 +228,19 @@ export class AudioEngine {
   playNote(midi: number, when: number, bus: Bus = 'guide', maxDur?: number): Handle | null {
     if (!this.ctx) return null;
     return this.oneShot(this.pluckBuffer(midi), when, bus, maxDur);
+  }
+
+  /**
+   * Strum several strings: down = low to high, up = high to low, ~14 ms apart.
+   * `midis` are sounding pitches low→high. A muted chuck is a short damped strum.
+   */
+  strum(midis: readonly number[], when: number, opts: { direction?: 'down' | 'up'; light?: boolean; mute?: boolean; maxDur?: number; bus?: Bus } = {}): Handle | null {
+    if (!this.ctx || !midis.length) return null;
+    const order = opts.direction === 'up' ? [...midis].reverse() : [...midis];
+    const gain = (opts.light ? 0.35 : 0.55) / Math.sqrt(order.length / 2);
+    const dur = opts.mute ? 0.06 : opts.maxDur;
+    const hs = order.map((m, i) => this.oneShot(this.pluckBuffer(m), when + i * (opts.light ? 0.01 : 0.014), opts.bus ?? 'guide', dur, gain));
+    return { stop: () => hs.forEach((h) => h.stop()) };
   }
 
   /** Recent metronome click times; an unpitched sound just after one is likely its echo. */

@@ -126,6 +126,11 @@ export interface Score {
   arrangementLevel?: 'easy' | 'medium' | 'full';
 }
 
+/** Unreviewed machine-made notes are never assessed (CLAUDE.md invariant). */
+export function isUnreviewedCandidate(score: Score): boolean {
+  return (score.role === 'transcription_candidate' || score.provenance.method === 'model_candidate') && score.provenance.reviewStatus === 'unreviewed';
+}
+
 /** True when a score needs gu-score/2 features. */
 export function needsV2(score: Score): boolean {
   return !!(score.chords?.length || score.sections?.length || score.arrangementLevel || score.instrument.capo || score.role === 'imported_part' ||

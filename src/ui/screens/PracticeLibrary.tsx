@@ -5,6 +5,7 @@ import type { SongRecord } from '../../storage/types';
 import { useApp } from '../AppContext';
 import { navigate, PageHead } from '../App';
 import { Icon } from '../icons';
+import { StageArt } from '../art';
 
 const FEATURED = ['piece.morning-steps', 'exercise.first-two-strings'];
 
@@ -22,6 +23,32 @@ export function PracticeLibrary() {
   return (
     <section aria-label="Practice">
       <PageHead title="Practice" />
+      <div className="card stage" style={{ marginBottom: 8 }}>
+        <StageArt className="stage-art" guitar={false} />
+        <div className="stage-body" style={{ minHeight: 180 }}>
+          <div className="kicker">Any song, your level</div>
+          <h2>Bring a song you love</h2>
+          <p>A recording, a tab, chords or a MIDI file. Then play it Easy, Medium or Full.</p>
+          <button type="button" className="btn primary big block" onClick={() => navigate('song', 'new')} data-testid="add-song">Add a song</button>
+        </div>
+      </div>
+      {songs && songs.length > 0 && (
+        <>
+          <div className="section-title">Your songs</div>
+          <div className="grid">
+            {songs.map((s) => (
+              <a key={s.id} href={`#/song/${s.id}`} className="tile">
+                <span className={`ic ${s.source === 'recording' || s.assetId ? '' : s.source === 'written' ? 'teal' : 'violet'}`}><Icon name={s.assetId ? 'wave' : s.source === 'written' ? 'edit' : 'practice'} /></span>
+                <div className="spacer">
+                  <div className="c-title">{s.title}</div>
+                  <div className="c-sub">{songStatus(s)}</div>
+                </div>
+                <Icon name="chevron" size={20} />
+              </a>
+            ))}
+          </div>
+        </>
+      )}
       <div className="section-title">Pieces and exercises</div>
       <div className="grid">
         {ordered.map((s) => {
@@ -43,29 +70,16 @@ export function PracticeLibrary() {
         })}
       </div>
 
-      <div className="section-title">Your songs</div>
-      <p className="t-small muted">Add a recording to play along with, write your own notes, or (experimental) turn a clean guitar recording into notes. Everything stays on this device.</p>
-      <div className="grid">
-        <button type="button" className="choice" onClick={() => navigate('song', 'new')} data-testid="add-song">
-          <Icon name="plus" />
-          <div><div className="c-title">Add a song</div><div className="c-sub">Recording, your own notes, or a score file</div></div>
-        </button>
-        {(songs ?? []).map((s) => (
-          <a key={s.id} href={`#/song/${s.id}`} className="choice" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <Icon name={s.assetId ? 'wave' : 'edit'} />
-            <div className="spacer">
-              <div className="c-title">{s.title}</div>
-              <div className="c-sub">{songStatus(s)}</div>
-            </div>
-            <Icon name="chevron" size={20} />
-          </a>
-        ))}
-      </div>
     </section>
   );
 }
 
 export function songStatus(s: SongRecord): string {
+  if (s.levels) {
+    const n = Object.keys(s.levels).length;
+    const cand = s.analysis && !s.analysis.reviewed;
+    return `${n === 3 ? 'Easy · Medium · Full' : `${n} level${n === 1 ? '' : 's'}`}${cand ? ' — worked out by the app, not reviewed' : ''}${s.analysis ? ` · ${s.analysis.key}` : ''}`;
+  }
   const latest = s.versions[s.versions.length - 1];
   if (!latest) return s.assetId ? 'Backing only' : 'Empty';
   if (latest.role === 'transcription_candidate') return 'Candidate notes — review needed';

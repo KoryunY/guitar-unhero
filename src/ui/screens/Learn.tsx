@@ -12,13 +12,9 @@ import { PracticePlayer } from '../practice/PracticePlayer';
 import { EarComparePanel, QuizPanel, SequencePanel, StrumAlongPanel, TapPulsePanel } from '../components/StepPanels';
 import { Icon } from '../icons';
 import { toast, TopBar } from '../kit';
-
-export const CHAPTERS: { title: string; ids: string[] }[] = [
-  { title: 'Getting started', ids: ['lesson.meet-guitar.v1', 'lesson.high-e.first-sound.v1', 'lesson.pulse.v1', 'lesson.your-hands.v1'] },
-  { title: 'Your first piece', ids: ['lesson.high-e.first-frets.v1', 'lesson.b-string.first-frets.v1', 'lesson.crossing.v1', 'lesson.long-notes.v1', 'lesson.first-piece.v1', 'lesson.chunks-memory.v1'] },
-  { title: 'Chords', ids: ['lesson.open-strings.v1', 'lesson.em-chord.v1', 'lesson.am-chord.v1'] },
-  { title: 'Ears and memory', ids: ['lesson.listen-remember.v1'] },
-];
+import { CHAPTERS } from '../../learning/chapters';
+import { RankBadge, TIER_INFO, VenueArt } from '../art';
+import { completedLessonIds, rankProgress } from '../coach';
 
 function evidenceBadge(e: Evidence | null | undefined) {
   if (e === 'sensor') return <span className="badge good"><Icon name="mic" size={12} /> Heard</span>;
@@ -27,43 +23,74 @@ function evidenceBadge(e: Evidence | null | undefined) {
   return null;
 }
 
+/** The journey map: chapters are venues from the bedroom to the stadium. */
 export function Learn({ lessonId }: { lessonId: string | null }) {
   const { lessons } = useApp();
   const lesson = lessonId ? findLesson(lessonId) : undefined;
-  if (lesson) return <LessonRunner key={lesson.lessonId} lesson={lesson} />;
+  const done = completedLessonIds(lessons);
   const current = LESSONS.find((l) => !lessons[l.lessonId]?.completedAt);
-  const listed = new Set(CHAPTERS.flatMap((c) => c.ids));
-  const chapters = [...CHAPTERS, { title: 'More', ids: LESSONS.map((l) => l.lessonId).filter((id) => !listed.has(id)) }].filter((c) => c.ids.some((id) => findLesson(id)));
+  const currentChapter = current ? CHAPTERS.find((c) => c.ids.includes(current.lessonId)) : null;
+  const [open, setOpen] = useState<Set<string>>(() => new Set(currentChapter ? [currentChapter.id] : [CHAPTERS[0]?.id ?? '']));
+  const rank = rankProgress(done);
+  if (lesson) return <LessonRunner key={lesson.lessonId} lesson={lesson} />;
   let n = 0;
   return (
     <section aria-labelledby="learn-h">
       <PageHead title="Learn" />
-      {chapters.map((c) => (
-        <div key={c.title}>
-          <div className="section-title">{c.title}</div>
-          <div className="path">
-            {c.ids.map((id) => findLesson(id)).filter((l): l is Lesson => !!l).map((l) => {
-              n++;
-              const p = lessons[l.lessonId];
-              const done = !!p?.completedAt;
-              const isCurrent = current?.lessonId === l.lessonId;
-              return (
-                <a key={l.lessonId} href={`#/learn/${l.lessonId}`} className={`pathnode${done ? ' done' : ''}${isCurrent ? ' current' : ''}`} aria-current={isCurrent ? 'step' : undefined}>
-                  <span className="dot">{done ? <Icon name="check" /> : n}</span>
-                  <span className="spacer">
-                    <span className="lr-title" style={{ display: 'block', fontWeight: 700 }}>{l.title}</span>
-                    <span className="t-small muted" style={{ display: 'block' }}>
-                      {done ? (p?.skillState === 'retained' ? 'Remembered on a later day' : 'Done') : p ? `${p.completedSteps.length} of ${l.steps.length} steps` : `About ${l.estimatedMinutes.replace(/ \(.*\)/, '')} min`}
-                    </span>
-                  </span>
-                  {done && evidenceBadge(p?.completionEvidence)}
-                  {p?.skillState === 'retained' && <span className="badge good">Retained</span>}
-                </a>
-              );
-            })}
-          </div>
+      <div className="card rank-card" style={{ marginBottom: 8 }}>
+        <RankBadge level={rank.level} max={rank.max} size={52} />
+        <div className="spacer">
+          <div className="rank-title">{rank.title}</div>
+          <div className="t-small muted">{done.size} of {LESSONS.length} lessons · {rank.nextTitle ? `next rank: ${rank.nextTitle}` : 'top rank reached'}</div>
+          <div className="xp" style={{ marginTop: 6 }}><i style={{ width: `${Math.round((done.size / Math.max(1, LESSONS.length)) * 100)}%` }} /></div>
         </div>
-      ))}
+      </div>
+      {CHAPTERS.map((c) => {
+        const lessonsIn = c.ids.map((id) => findLesson(id)).filter((l): l is Lesson => !!l);
+        const doneIn = lessonsIn.filter((l) => done.has(l.lessonId)).length;
+        const isOpen = open.has(c.id);
+        const first = n;
+        n += lessonsIn.length;
+        return (
+          <div key={c.id}>
+            <button type="button" className="venue" style={{ width: '100%', border: 0, padding: 0, textAlign: 'left', cursor: 'pointer', font: 'inherit' }} aria-expanded={isOpen}
+              onClick={() => setOpen((o) => { const x = new Set(o); if (x.has(c.id)) x.delete(c.id); else x.add(c.id); return x; })}>
+              <VenueArt tier={c.tier} />
+              <span className="v-body">
+                <span>
+                  <span className="v-kicker" style={{ display: 'block' }}>{TIER_INFO[c.tier].venue}</span>
+                  <span className="t-title" style={{ display: 'block', color: '#fff', fontSize: 30, lineHeight: '32px', margin: '2px 0' }}><span aria-hidden="true">{c.emoji} </span>{c.title}</span>
+                  <span className="v-sub" style={{ display: 'block' }}>{c.subtitle}</span>
+                </span>
+                <span className="v-count num" aria-label={`${doneIn} of ${lessonsIn.length} done`}>{doneIn}/{lessonsIn.length}</span>
+              </span>
+            </button>
+            {isOpen && (
+              <div className="trail">
+                {lessonsIn.map((l, i) => {
+                  const p = lessons[l.lessonId];
+                  const isDone = done.has(l.lessonId);
+                  const isCurrent = current?.lessonId === l.lessonId;
+                  const boss = /boss|review|etude|étude/i.test(l.title);
+                  return (
+                    <a key={l.lessonId} href={`#/learn/${l.lessonId}`} className={`pathnode${isDone ? ' done' : ''}${isCurrent ? ' current' : ''}${boss ? ' boss' : ''}`} aria-current={isCurrent ? 'step' : undefined}>
+                      <span className="dot">{isDone ? <Icon name="check" /> : boss ? '★' : first + i + 1}</span>
+                      <span className="spacer">
+                        <span className="lr-title" style={{ display: 'block', fontWeight: 700 }}>{l.title}</span>
+                        <span className="t-small muted" style={{ display: 'block' }}>
+                          {isDone ? (p?.skillState === 'retained' ? 'Remembered on a later day' : 'Done') : p ? `${p.completedSteps.length} of ${l.steps.length} steps` : `About ${l.estimatedMinutes.replace(/ \(.*\)/, '')} min`}
+                        </span>
+                      </span>
+                      {isDone && evidenceBadge(p?.completionEvidence)}
+                      {p?.skillState === 'retained' && <span className="badge good">Retained</span>}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
       <p className="t-caption" style={{ marginTop: 24 }}>Lessons are drafts written for this app and have not yet been reviewed by a guitar teacher. If anything hurts, stop and rest.</p>
     </section>
   );

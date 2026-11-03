@@ -194,6 +194,38 @@
         },
         "cameraLab": {
           "type": "boolean"
+        },
+        "theme": {
+          "enum": [
+            "system",
+            "light",
+            "stage"
+          ]
+        },
+        "voice": {
+          "enum": [
+            "plain",
+            "funny",
+            "metal"
+          ]
+        },
+        "instrument": {
+          "enum": [
+            "acoustic",
+            "electric",
+            "classical"
+          ]
+        },
+        "tuning": {
+          "enum": [
+            "standard",
+            "drop_d",
+            "half_step_down",
+            "d_standard",
+            "open_g",
+            "open_d",
+            "dadgad"
+          ]
         }
       }
     },

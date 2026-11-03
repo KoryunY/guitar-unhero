@@ -3,7 +3,8 @@ import { engine } from '../../audio/engine';
 import { useApp } from '../AppContext';
 import { navigate } from '../App';
 import { Icon } from '../icons';
-import { Callout } from '../kit';
+import { Callout, Segmented } from '../kit';
+import { Coach, Logo, StageArt } from '../art';
 import { InputMeter } from '../components/InputMeter';
 
 type Step = 'hello' | 'start' | 'mic' | 'output' | 'done';
@@ -36,7 +37,13 @@ export function Welcome() {
 
       {step === 'hello' && (
         <>
-          <div style={{ fontSize: 56, lineHeight: '56px' }} aria-hidden="true">🎸</div>
+          <div className="card stage" style={{ minHeight: 0 }}>
+            <StageArt className="stage-art" />
+            <div className="stage-body" style={{ minHeight: 200 }}>
+              <div className="row nowrap"><Logo size={44} /><span className="t-logo" style={{ fontSize: 30, lineHeight: '32px' }}>Guitar Unhero</span></div>
+              <p>From the bedroom to the stadium. Bring a guitar and a sense of humour.</p>
+            </div>
+          </div>
           <h1 id="welcome-h" className="t-display" tabIndex={-1}>Welcome — you can start here.</h1>
           <p className="t-body">Guitar Unhero is a patient teacher for your real guitar. One clear movement at a time: hear it, see it, play it, adjust one thing.</p>
           <p className="t-small muted">No account. Your progress stays on this device. The microphone is optional and never records or uploads.</p>
@@ -49,6 +56,15 @@ export function Welcome() {
               <div><div className="c-title">Left hand</div><div className="c-sub">Diagrams are mirrored for you. String numbers stay the same.</div></div>
             </button>
           </div>
+          <div className="section-title">Your guitar</div>
+          <Segmented label="Your guitar" value={settings.instrument} onChange={(v) => updateSettings({ instrument: v })}
+            options={[{ value: 'acoustic', label: 'Acoustic' }, { value: 'electric', label: 'Electric' }, { value: 'classical', label: 'Nylon' }]} />
+          <div className="section-title">Coach style</div>
+          <Segmented label="Coach style" value={settings.voice} onChange={(v) => updateSettings({ voice: v })}
+            options={[{ value: 'plain', label: 'Plain' }, { value: 'funny', label: 'Funny' }, { value: 'metal', label: 'Metal 🤘' }]} />
+          <Coach mood={settings.voice === 'metal' ? 'rock' : settings.voice === 'funny' ? 'happy' : 'think'}>
+            <p>{settings.voice === 'plain' ? 'Just the facts. I will keep it short and clear.' : settings.voice === 'funny' ? 'Clear instructions, plus the occasional bad joke. You can change this any time in Settings.' : 'CLEAR INSTRUCTIONS. MAXIMUM VOLUME. Jokes are extras — the real advice always comes first.'}</p>
+          </Coach>
           <button type="button" className="btn primary block" onClick={() => setStep('start')}>Continue</button>
         </>
       )}

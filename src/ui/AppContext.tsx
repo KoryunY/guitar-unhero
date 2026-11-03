@@ -75,6 +75,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.contrast = settings.highContrast ? 'high' : 'normal';
+    if (settings.theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = settings.theme === 'stage' ? 'dark' : 'light';
     const reduce = settings.reducedMotion === 'on' || (settings.reducedMotion === 'system' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     root.dataset.motion = reduce ? 'reduce' : 'normal';
     engine.setBusLevel('guide', settings.guideLevel);

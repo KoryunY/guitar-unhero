@@ -97,3 +97,13 @@ export const STRING_LABELS: Record<StringNumber, { name: string; nickname: strin
   5: { name: 'A2', nickname: 'A' },
   6: { name: 'E2', nickname: 'low E (thickest)' },
 };
+
+/** Sounding pitches of a chord shape, low → high. `frets` index 0 = string 1; null = not played. */
+export function chordMidis(frets: readonly (number | null)[], capo = 0): number[] {
+  const out: number[] = [];
+  for (let s = 6; s >= 1; s--) {
+    const f = frets[s - 1];
+    if (f !== null && f !== undefined) out.push(OPEN_MIDI_BY_STRING[s as StringNumber] + capo + f);
+  }
+  return out;
+}

@@ -4,6 +4,7 @@ import { useApp } from './AppContext';
 import { Icon, type IconName } from './icons';
 import { Sheet, ToastHost } from './kit';
 import { InputMeter } from './components/InputMeter';
+import { Logo } from './art';
 import { ListenControl } from './components/ListenControl';
 
 const Today = lazy(() => import('./screens/Today').then((m) => ({ default: m.Today })));
@@ -204,7 +205,7 @@ export function App() {
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to content</a>
       {sim && <div className="sim-stripe" data-testid="sim-banner" aria-hidden="true" />}
       <nav className="tabbar" aria-label="Main">
-        <div className="brand">Guitar Unhero</div>
+        <div className="brand"><Logo size={40} /><span className="t-logo" aria-hidden="true">Guitar Unhero</span><span className="sr-only">Guitar Unhero</span></div>
         {TABS.map((t) => (
           <a key={t.name} href={`#/${t.name}`} aria-current={route.name === t.name || (t.name === 'practice' && route.name === 'song') ? 'page' : undefined}>
             <span className="tab-icon"><Icon name={t.icon} /></span>

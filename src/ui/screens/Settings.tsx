@@ -12,6 +12,18 @@ export function SettingsScreen() {
     <section aria-label="Settings">
       <PageHead title="Settings" />
 
+      <div className="section-title">You and your guitar</div>
+      <div className="list">
+        <div className="listrow" style={{ cursor: 'default', flexWrap: 'wrap' }}>
+          <div className="lr-main"><div className="lr-title">Your guitar</div><div className="lr-sub">Tips change a little (electric: amp and volume advice, bends are easier).</div></div>
+          <Segmented label="Your guitar" value={settings.instrument} options={[{ value: 'acoustic', label: 'Acoustic' }, { value: 'electric', label: 'Electric' }, { value: 'classical', label: 'Nylon' }]} onChange={(v) => updateSettings({ instrument: v })} />
+        </div>
+        <div className="listrow" style={{ cursor: 'default', flexWrap: 'wrap' }}>
+          <div className="lr-main"><div className="lr-title">Coach style</div><div className="lr-sub">Jokes are extra lines; the instructions stay plain.</div></div>
+          <Segmented label="Coach style" value={settings.voice} options={[{ value: 'plain', label: 'Plain' }, { value: 'funny', label: 'Funny' }, { value: 'metal', label: 'Metal' }]} onChange={(v) => updateSettings({ voice: v })} />
+        </div>
+      </div>
+
       <div className="section-title">Playing</div>
       <div className="list">
         <div className="listrow" style={{ cursor: 'default', flexWrap: 'wrap' }}>
@@ -41,6 +53,10 @@ export function SettingsScreen() {
 
       <div className="section-title">Display</div>
       <div className="list">
+        <div className="listrow" style={{ cursor: 'default', flexWrap: 'wrap' }}>
+          <div className="lr-main"><div className="lr-title">Look</div><div className="lr-sub">Daylight paper or a dark stage.</div></div>
+          <Segmented label="Look" value={settings.theme} options={[{ value: 'system', label: 'Auto' }, { value: 'light', label: 'Day' }, { value: 'stage', label: 'Stage' }]} onChange={(v) => updateSettings({ theme: v })} />
+        </div>
         <div className="listrow" style={{ cursor: 'default', flexWrap: 'wrap' }}>
           <div className="lr-main"><div className="lr-title">Motion</div><div className="lr-sub">“Less” moves notes in steps instead of scrolling.</div></div>
           <Segmented label="Motion" value={settings.reducedMotion} options={[{ value: 'system', label: 'Auto' }, { value: 'on', label: 'Less' }, { value: 'off', label: 'Smooth' }]} onChange={(v) => updateSettings({ reducedMotion: v })} />

@@ -10,7 +10,7 @@
  */
 import { StreamAnalyzer } from './dsp/analyzer';
 import type { AttackObservation, PitchFrame } from './observations';
-import { PPQ, type NoteEvent, type Rights, type Score } from '../domain/score';
+import { PPQ, withSchemaVersion, type NoteEvent, type Rights, type Score } from '../domain/score';
 import { blankScore, BAR_TICKS } from '../domain/edit';
 import { FULL_NECK_PROFILE, planFingering, type FingeringProfile } from '../domain/fingering';
 
@@ -238,7 +238,7 @@ export function buildCandidate(opts: {
       score.sourceAudio = {
         assetId: opts.source.assetId,
         sha256: opts.source.sha256,
-        durationSec: Math.min(180, opts.source.durationSec),
+        durationSec: opts.source.durationSec,
         rights: opts.rights,
         alignmentStatus: 'candidate',
         anchors: [
@@ -248,7 +248,7 @@ export function buildCandidate(opts: {
       };
     }
   }
-  return { score, reason: null, unplayable, shiftTicks };
+  return { score: withSchemaVersion(score), reason: null, unplayable, shiftTicks };
 }
 
 /** Note-level F-measure (onset ±50 ms, pitch ±50 cents); optional offset check (max(50 ms, 20 % of duration)). */
