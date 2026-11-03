@@ -1,11 +1,14 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { engine } from '../audio/engine';
 import { useApp } from './AppContext';
 import { Icon, type IconName } from './icons';
-import { Sheet, ToastHost } from './kit';
+import { Sheet, Skeleton, ToastHost } from './kit';
 import { InputMeter } from './components/InputMeter';
 import { Logo } from './art';
 import { ListenControl } from './components/ListenControl';
+import { Backdrop, useDayLook, type BackdropMood } from './Backdrop';
+import { LESSONS } from '../learning/lessons';
+import { chapterOf } from './coach';
 
 const Today = lazy(() => import('./screens/Today').then((m) => ({ default: m.Today })));
 const Welcome = lazy(() => import('./screens/Welcome').then((m) => ({ default: m.Welcome })));
@@ -55,6 +58,62 @@ const TABS: { name: RouteName; label: string; icon: IconName }[] = [
   { name: 'tune', label: 'Tune', icon: 'tune' },
   { name: 'settings', label: 'Settings', icon: 'settings' },
 ];
+
+function moodFor(r: Route): BackdropMood {
+  if (r.name === 'tune') return 'amp';
+  if (r.name === 'settings' || r.name === 'camera') return 'backstage';
+  if (r.name === 'song') return 'studio';
+  if (r.name === 'practice') return 'stage';
+  return 'venue';
+}
+
+/** Glowing pill behind the current tab; slides between tabs (static with reduced motion). */
+function useNavIndicator(nav: RefObject<HTMLElement | null>, key: string) {
+  useLayoutEffect(() => {
+    const el = nav.current;
+    if (!el) return;
+    const place = () => {
+      const a = el.querySelector<HTMLElement>('a[aria-current="page"]');
+      const target = a && (window.matchMedia('(min-width: 1280px)').matches ? a : a.querySelector<HTMLElement>('.tab-icon'));
+      if (!target) {
+        el.style.setProperty('--ind-o', '0');
+        return;
+      }
+      const n = el.getBoundingClientRect();
+      const r = target.getBoundingClientRect();
+      el.style.setProperty('--ind-x', `${r.left - n.left}px`);
+      el.style.setProperty('--ind-y', `${r.top - n.top}px`);
+      el.style.setProperty('--ind-w', `${r.width}px`);
+      el.style.setProperty('--ind-h', `${r.height}px`);
+      el.style.setProperty('--ind-o', '1');
+    };
+    place();
+    // Fonts and lazy screens can shift the rail after first paint: measure again once they settle.
+    const late = window.setTimeout(place, 400);
+    void document.fonts?.ready.then(place);
+    window.addEventListener('resize', place);
+    return () => {
+      window.clearTimeout(late);
+      window.removeEventListener('resize', place);
+    };
+  }, [nav, key]);
+}
+
+/** Let pressable cards glow where the pointer is (CSS reads --mx / --my). */
+function usePointerGlow() {
+  useEffect(() => {
+    if (!window.matchMedia?.('(hover: hover)').matches) return;
+    const on = (e: PointerEvent) => {
+      const el = (e.target as Element | null)?.closest?.('.tile, .pathnode, .choice, a.card');
+      if (!(el instanceof HTMLElement)) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+      el.style.setProperty('--my', `${e.clientY - r.top}px`);
+    };
+    document.addEventListener('pointermove', on, { passive: true });
+    return () => document.removeEventListener('pointermove', on);
+  }, []);
+}
 
 function isFocus(r: Route): boolean {
   return r.name === 'welcome' || r.name === 'camera' || (r.name === 'learn' && !!r.arg) || (r.name === 'practice' && !!r.arg) || r.name === 'song';
@@ -155,7 +214,13 @@ export function PageHead({ title, children }: { title: string; children?: ReactN
 
 export function App() {
   const [route, setRoute] = useState<Route>(parseHash());
-  const { settings, storageError, ready } = useApp();
+  const { settings, storageError, ready, lessons } = useApp();
+  const navRef = useRef<HTMLElement>(null);
+  const day = useDayLook(settings.theme);
+  const current = LESSONS.find((l) => !lessons[l.lessonId]?.completedAt);
+  const tier = (current && chapterOf(current.lessonId)?.tier) || (current ? 'beginner' : 'hero');
+  useNavIndicator(navRef, `${route.name}:${ready}:${settings.onboarded}`);
+  usePointerGlow();
 
   useEffect(() => {
     const on = () => setRoute(parseHash());
@@ -203,8 +268,10 @@ export function App() {
   return (
     <div className={`app${focus ? ' focus' : ''}`}>
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to content</a>
+      <Backdrop tier={tier} mood={moodFor(route)} day={day} />
       {sim && <div className="sim-stripe" data-testid="sim-banner" aria-hidden="true" />}
-      <nav className="tabbar" aria-label="Main">
+      <nav className="tabbar" aria-label="Main" ref={navRef}>
+        <span className="nav-ind" aria-hidden="true" />
         <div className="brand"><Logo size={40} /><span className="t-logo" aria-hidden="true">Guitar Unhero</span><span className="sr-only">Guitar Unhero</span></div>
         {TABS.map((t) => (
           <a key={t.name} href={`#/${t.name}`} aria-current={route.name === t.name || (t.name === 'practice' && route.name === 'song') ? 'page' : undefined}>
@@ -215,7 +282,7 @@ export function App() {
       </nav>
       <main id="main" className="page" tabIndex={-1}>
         {storageError && <div className="callout bad" role="alert" style={{ marginBottom: 12 }}>{storageError}</div>}
-        {!ready ? <p>Loading…</p> : <Suspense fallback={<p className="muted">Loading…</p>}>{screen}</Suspense>}
+        {!ready ? <Skeleton /> : <Suspense fallback={<Skeleton />}>{screen}</Suspense>}
       </main>
       <ToastHost />
     </div>

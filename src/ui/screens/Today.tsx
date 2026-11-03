@@ -4,6 +4,7 @@ import { LESSONS } from '../../learning/lessons';
 import { Icon } from '../icons';
 import { Coach, Flame, RankBadge, StageArt, VenueArt, TIER_INFO, type Mood } from '../art';
 import { chapterOf, completedLessonIds, daySeed, lessonNumber, rankProgress, streakDays, useJoke } from '../coach';
+import { useCountUp } from '../kit';
 
 function greeting(d = new Date()): string {
   const h = d.getHours();
@@ -26,6 +27,9 @@ export function Today() {
   const firstTime = done.size === 0 && doneSteps === 0;
   const mood: Mood = firstTime ? 'happy' : streak >= 3 ? 'rock' : streak === 0 ? 'sleepy' : 'proud';
   const joke = useJoke(firstTime ? 'first_launch' : streak === 0 ? 'welcome_back' : 'lesson_start', daySeed());
+  const shownStreak = useCountUp(streak);
+  const shownDone = useCountUp(done.size);
+  const shownSessions = useCountUp(summaries.length);
 
   return (
     <section className="stack" aria-labelledby="today-h">
@@ -121,9 +125,9 @@ export function Today() {
             )}
           </div>
           <div className="stat-row">
-            <div className="stat"><Flame lit={streak > 0} /><span className="v num">{streak}</span><span className="k">day streak</span></div>
-            <div className="stat"><Icon name="check" /><span className="v num">{done.size}</span><span className="k">lessons</span></div>
-            <div className="stat"><Icon name="practice" /><span className="v num">{summaries.length}</span><span className="k">sessions</span></div>
+            <div className="stat"><Flame lit={streak > 0} /><span className="v num">{shownStreak}</span><span className="k">day streak</span></div>
+            <div className="stat"><Icon name="check" /><span className="v num">{shownDone}</span><span className="k">lessons</span></div>
+            <div className="stat"><Icon name="practice" /><span className="v num">{shownSessions}</span><span className="k">sessions</span></div>
           </div>
           {chapter && (
             <a className="venue" href="#/learn" style={{ margin: 0, textDecoration: 'none' }}>

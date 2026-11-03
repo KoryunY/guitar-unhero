@@ -3,8 +3,20 @@ import { engine } from '../../audio/engine';
 import { useApp } from '../AppContext';
 import { navigate } from '../App';
 import { Icon } from '../icons';
-import { Callout, Segmented } from '../kit';
-import { Coach, Logo, StageArt } from '../art';
+import { Callout } from '../kit';
+import { Coach, GuitarIcon, Logo, Mascot, StageArt, type Mood } from '../art';
+import type { InstrumentChoice, VoiceChoice } from '../../storage/types';
+
+const GUITARS: { value: InstrumentChoice; label: string }[] = [
+  { value: 'acoustic', label: 'Acoustic' },
+  { value: 'electric', label: 'Electric' },
+  { value: 'classical', label: 'Nylon' },
+];
+const VOICES: { value: VoiceChoice; label: string; mood: Mood }[] = [
+  { value: 'plain', label: 'Plain', mood: 'think' },
+  { value: 'funny', label: 'Funny', mood: 'happy' },
+  { value: 'metal', label: 'Metal', mood: 'rock' },
+];
 import { InputMeter } from '../components/InputMeter';
 
 type Step = 'hello' | 'start' | 'mic' | 'output' | 'done';
@@ -30,14 +42,33 @@ export function Welcome() {
   };
 
   return (
-    <section aria-labelledby="welcome-h" className="stack" style={{ maxWidth: 560, margin: '0 auto' }}>
+    <div className="welcome">
+    <aside className="welcome-art" aria-hidden="true">
+      <div className="card stage">
+        <StageArt className="stage-art" />
+        <div className="stage-body">
+          <div className="row nowrap"><Logo size={56} /><span className="t-logo">Guitar Unhero</span></div>
+          <div className="kicker">Your first gig starts here</div>
+          <h2>From the bedroom to the stadium.</h2>
+        </div>
+      </div>
+      <div className="card welcome-promises">
+        <Mascot mood={settings.voice === 'metal' ? 'rock' : settings.voice === 'plain' ? 'think' : 'happy'} size={96} />
+        <ul>
+          <li><Icon name="ear" size={22} />Hear it, see it, play it: one clear move at a time.</li>
+          <li><Icon name="lock" size={22} />No account. Nothing leaves this device.</li>
+          <li><Icon name="practice" size={22} />Any song you love, played Easy, Medium or Full.</li>
+        </ul>
+      </div>
+    </aside>
+    <section aria-labelledby="welcome-h" className="stack" style={{ maxWidth: 560, width: '100%', margin: '0 auto' }}>
       <div className="steps-bar" aria-hidden="true">
         {order.map((s, i) => <i key={s} className={i < idx ? 'done' : i === idx ? 'current' : ''} />)}
       </div>
 
       {step === 'hello' && (
         <>
-          <div className="card stage" style={{ minHeight: 0 }}>
+          <div className="card stage hello-hero" style={{ minHeight: 0 }}>
             <StageArt className="stage-art" />
             <div className="stage-body" style={{ minHeight: 200 }}>
               <div className="row nowrap"><Logo size={44} /><span className="t-logo" style={{ fontSize: 30, lineHeight: '32px' }}>Guitar Unhero</span></div>
@@ -50,18 +81,30 @@ export function Welcome() {
           <div className="section-title">Which hand strums?</div>
           <div className="stack" role="radiogroup" aria-label="Which hand strums?">
             <button type="button" role="radio" className="choice" aria-checked={settings.handedness === 'right'} onClick={() => updateSettings({ handedness: 'right' })}>
+              <span className="hand" aria-hidden="true"><Icon name="hand" /></span>
               <div><div className="c-title">Right hand</div><div className="c-sub">Most people. Your left hand presses the strings.</div></div>
             </button>
             <button type="button" role="radio" className="choice" aria-checked={settings.handedness === 'left'} onClick={() => updateSettings({ handedness: 'left' })}>
+              <span className="hand mirror" aria-hidden="true"><Icon name="hand" /></span>
               <div><div className="c-title">Left hand</div><div className="c-sub">Diagrams are mirrored for you. String numbers stay the same.</div></div>
             </button>
           </div>
           <div className="section-title">Your guitar</div>
-          <Segmented label="Your guitar" value={settings.instrument} onChange={(v) => updateSettings({ instrument: v })}
-            options={[{ value: 'acoustic', label: 'Acoustic' }, { value: 'electric', label: 'Electric' }, { value: 'classical', label: 'Nylon' }]} />
+          <div className="pick-row" role="radiogroup" aria-label="Your guitar">
+            {GUITARS.map((g) => (
+              <button key={g.value} type="button" role="radio" className="pick-tile" aria-checked={settings.instrument === g.value} onClick={() => updateSettings({ instrument: g.value })}>
+                <GuitarIcon kind={g.value} />{g.label}
+              </button>
+            ))}
+          </div>
           <div className="section-title">Coach style</div>
-          <Segmented label="Coach style" value={settings.voice} onChange={(v) => updateSettings({ voice: v })}
-            options={[{ value: 'plain', label: 'Plain' }, { value: 'funny', label: 'Funny' }, { value: 'metal', label: 'Metal 🤘' }]} />
+          <div className="pick-row" role="radiogroup" aria-label="Coach style">
+            {VOICES.map((v) => (
+              <button key={v.value} type="button" role="radio" className="pick-tile" aria-checked={settings.voice === v.value} onClick={() => updateSettings({ voice: v.value })}>
+                <Mascot mood={v.mood} size={56} />{v.label}
+              </button>
+            ))}
+          </div>
           <Coach mood={settings.voice === 'metal' ? 'rock' : settings.voice === 'funny' ? 'happy' : 'think'}>
             <p>{settings.voice === 'plain' ? 'Just the facts. I will keep it short and clear.' : settings.voice === 'funny' ? 'Clear instructions, plus the occasional bad joke. You can change this any time in Settings.' : 'CLEAR INSTRUCTIONS. MAXIMUM VOLUME. Jokes are extras — the real advice always comes first.'}</p>
           </Coach>
@@ -139,5 +182,6 @@ export function Welcome() {
         </>
       )}
     </section>
+    </div>
   );
 }

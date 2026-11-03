@@ -59,6 +59,8 @@ export interface LessonStep {
   kind: 'info' | 'demo' | 'attempt' | 'stop-ringing' | 'practice' | 'choice' | 'quiz' | 'tap-pulse' | 'sequence' | 'strum-along' | 'ear-compare';
   body: string[];
   diagram?: Diagram;
+  /** An illustration drawn beside the step (decorative teaching picture with a text alternative). */
+  illustration?: 'guitar-parts';
   /** Prepare / press / sound / release cues, shown in order. */
   phases?: { label: string; text: string }[];
   /** Synth demonstration played only on request; assessment is disabled while it plays. */

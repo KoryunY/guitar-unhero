@@ -79,6 +79,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     else root.dataset.theme = settings.theme === 'stage' ? 'dark' : 'light';
     const reduce = settings.reducedMotion === 'on' || (settings.reducedMotion === 'system' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     root.dataset.motion = reduce ? 'reduce' : 'normal';
+    root.dataset.effects = settings.stageEffects ? 'on' : 'off';
     engine.setBusLevel('guide', settings.guideLevel);
     engine.setBusLevel('metronome', settings.metronomeLevel);
     engine.setBusLevel('reference', settings.referenceLevel);

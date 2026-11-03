@@ -334,6 +334,7 @@ const M2_LESSONS: Lesson[] = [
           'Body and sound hole (or pickups): your picking hand plucks or strums the strings over this area.',
           'Strings are numbered 1 to 6. String 1 is the thinnest and highest-sounding; string 6 is the thickest and lowest.',
         ],
+        illustration: 'guitar-parts',
         diagram: { highlight: [1, 6], caption: 'Strings 1 (thinnest, high E) and 6 (thickest, low E).' },
         demoMidis: [64, 40],
         demoLabel: 'Hear string 1, then string 6',

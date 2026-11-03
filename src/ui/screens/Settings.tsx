@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useApp } from '../AppContext';
 import { PageHead } from '../App';
 import { Icon } from '../icons';
 import { LinkRow, Segmented, ToggleRow } from '../kit';
+import { Mascot } from '../art';
 
 /** Everyday settings first; developer tools behind the "Advanced tools" switch. */
 export function SettingsScreen() {
@@ -11,7 +12,15 @@ export function SettingsScreen() {
   return (
     <section aria-label="Settings">
       <PageHead title="Settings" />
+      <div className="roadcase" aria-hidden="true">
+        <i className="corner tl" /><i className="corner tr" /><i className="corner bl" /><i className="corner br" />
+        <span className="stencil"><small>Road case 01</small>Backstage</span>
+        <span className="sticker">Handle with care</span>
+        <span className="sticker round"><Mascot mood="rock" size={52} /></span>
+      </div>
 
+      <div className="settings-grid">
+      <div>
       <div className="section-title">You and your guitar</div>
       <div className="list">
         <div className="listrow" style={{ cursor: 'default', flexWrap: 'wrap' }}>
@@ -37,6 +46,8 @@ export function SettingsScreen() {
         </div>
       </div>
 
+      </div>
+      <div>
       <div className="section-title">Sound</div>
       <div className="list">
         {([
@@ -46,7 +57,7 @@ export function SettingsScreen() {
         ] as const).map(([k, label]) => (
           <label key={k} className="listrow" style={{ cursor: 'default' }}>
             <div className="lr-main"><div className="lr-title">{label}</div></div>
-            <input type="range" min={0} max={1} step={0.05} value={settings[k]} onChange={(e) => updateSettings({ [k]: Number(e.target.value) })} aria-label={`${label} volume`} style={{ width: 160, height: 48 }} />
+            <input type="range" min={0} max={1} step={0.05} value={settings[k]} onChange={(e) => updateSettings({ [k]: Number(e.target.value) })} aria-label={`${label} volume`} style={{ width: 160, height: 48, '--fill': `${Math.round(settings[k] * 100)}%` } as CSSProperties} />
           </label>
         ))}
       </div>
@@ -61,7 +72,10 @@ export function SettingsScreen() {
           <div className="lr-main"><div className="lr-title">Motion</div><div className="lr-sub">“Less” moves notes in steps instead of scrolling.</div></div>
           <Segmented label="Motion" value={settings.reducedMotion} options={[{ value: 'system', label: 'Auto' }, { value: 'on', label: 'Less' }, { value: 'off', label: 'Smooth' }]} onChange={(v) => updateSettings({ reducedMotion: v })} />
         </div>
+        <ToggleRow title="Stage effects" sub="Lights, haze and celebrations. Calmer when off." checked={settings.stageEffects} onChange={(v) => updateSettings({ stageEffects: v })} testId="stage-effects" />
         <ToggleRow title="High contrast" checked={settings.highContrast} onChange={(v) => updateSettings({ highContrast: v })} testId="high-contrast" />
+      </div>
+      </div>
       </div>
 
       <div className="section-title">Privacy</div>

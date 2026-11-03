@@ -21,7 +21,7 @@ import { AnalyzeView, LevelPlay, saveLevels } from './SongPlay';
 import { importSong, type ImportedSong } from '../../domain/importers';
 import { importedToSource } from '../../domain/fromImport';
 import { buildLevels } from '../../domain/songArrange';
-import { Coach } from '../art';
+import { Coach, StudioArt } from '../art';
 
 type RightsChoice = 'own' | 'permission' | 'unsure';
 const RIGHTS: Record<RightsChoice, { title: string; sub: string; rights: () => Rights }> = {
@@ -63,6 +63,7 @@ function NewSong() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   /** Imported notation → three levels saved on the song. */
   const fromNotation = async (song: SongRecord, imported: ImportedSong, sourceName: string, rights: Rights) => {
@@ -154,8 +155,25 @@ function NewSong() {
   ] as const;
 
   return (
-    <section className="stack" style={{ maxWidth: 680, margin: '0 auto' }}>
+    <section className="song-new">
       <TopBar title="Add a song" back={() => navigate('practice')} />
+      <aside className="song-side stack" aria-label="What happens next">
+        <div className="studio">
+          <StudioArt />
+          <div className="s-body">
+            <span className="kicker">The studio</span>
+            <h2>Any song, your level</h2>
+          </div>
+        </div>
+        <div className="card stack" style={{ gap: 12 }}>
+          <ol className="next-steps">
+            <li><span aria-hidden="true">1</span><div><b>Work it out</b><div className="t-small muted">Beat, key, chords and tune, worked out on this device.</div></div></li>
+            <li><span aria-hidden="true">2</span><div><b>Listen, then press “Sounds right”</b><div className="t-small muted">Nothing is checked until you confirm it.</div></div></li>
+            <li><span aria-hidden="true">3</span><div><b>Play it Easy, Medium or Full</b><div className="t-small muted">Same key, a capo if it helps. Slow it to 75 % or 50 %.</div></div></li>
+          </ol>
+        </div>
+      </aside>
+      <div className="song-form stack">
       <Coach mood="happy"><p>Bring any song. You will get an Easy, a Medium and a Full version to play — same key, your level.</p></Coach>
       <label className="field"><span>Name</span><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Song name (optional)" maxLength={80} data-testid="song-title" /></label>
       <div className="field"><span>Start from</span>
@@ -169,10 +187,17 @@ function NewSong() {
         </div>
       </div>
       {(kind === 'recording' || kind === 'file') && (
-        <label className="field">
-          <span>{kind === 'recording' ? `Song file (up to ${MAX_IMPORT_SECONDS / 60} minutes)` : 'Notation file'}</span>
-          <input ref={fileRef} type="file" className="input" style={{ paddingTop: 10 }} accept={kind === 'recording' ? 'audio/*,.wav,.mp3,.m4a,.mp4,.ogg,.flac,.aac,.opus,.aif,.aiff' : '.mid,.midi,.kar,.gp,.gp3,.gp4,.gp5,.gpx,.musicxml,.xml,.cho,.chopro,.json,application/json'} data-testid="song-file" />
-        </label>
+        <div className="field">
+          <span id="song-file-label">{kind === 'recording' ? `Song file (up to ${MAX_IMPORT_SECONDS / 60} minutes)` : 'Notation file'}</span>
+          <label className="dropzone">
+            <span className="dz-ic" aria-hidden="true"><Icon name="upload" size={26} /></span>
+            <span>
+              <span className="dz-title" style={{ display: 'block' }}>{fileName ?? 'Drop a file here, or choose one'}</span>
+              <span className="t-small muted" style={{ display: 'block' }}>{fileName ? 'Ready. Choose another to replace it.' : 'It never leaves this device.'}</span>
+            </span>
+            <input ref={fileRef} type="file" aria-labelledby="song-file-label" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} accept={kind === 'recording' ? 'audio/*,.wav,.mp3,.m4a,.mp4,.ogg,.flac,.aac,.opus,.aif,.aiff' : '.mid,.midi,.kar,.gp,.gp3,.gp4,.gp5,.gpx,.musicxml,.xml,.cho,.chopro,.json,application/json'} data-testid="song-file" />
+          </label>
+        </div>
       )}
       {kind === 'text' && (
         <label className="field">
@@ -201,6 +226,7 @@ function NewSong() {
       </div>
       {error && <Callout kind="bad">{error}</Callout>}
       <button type="button" className="btn primary big block" onClick={create} disabled={busy} data-testid="create-song">{busy ? 'Working…' : kind === 'recording' ? 'Add and work it out' : 'Create'}</button>
+      </div>
     </section>
   );
 }

@@ -13,7 +13,7 @@ function pct(x: number | null): string {
 export function SummaryCard({ record }: { record: PracticeSummaryRecord }) {
   const s = record.stats;
   return (
-    <section className="card stack" aria-label="How it went" data-testid="summary" style={record.simulated ? { borderColor: 'var(--sim)', background: 'var(--sim-soft)' } : undefined}>
+    <section className={`card stack${!record.simulated && s.pitch.accuracy !== null && s.pitch.accuracy >= 0.8 ? ' summary-good' : ''}`} aria-label="How it went" data-testid="summary" style={record.simulated ? { borderColor: 'var(--sim)', background: 'var(--sim-soft)' } : undefined}>
       <div className="row nowrap">
         <h3 className="t-card spacer">How it went</h3>
         {record.simulated && <span className="badge sim">Simulated — not real assessment</span>}

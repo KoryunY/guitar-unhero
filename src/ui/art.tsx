@@ -155,76 +155,257 @@ export const TIER_INFO: Record<Tier, { venue: string; tag: string }> = {
   hero: { venue: 'The stadium', tag: 'Lighters up. Probably phone torches.' },
 };
 
-/** Small scene per journey tier (decorative). */
+/** Rows of heads (and a few raised hands) for crowd silhouettes. */
+function crowdPath(y: number, from: number, to: number, step: number, r: number): string {
+  let d = '';
+  for (let x = from, i = 0; x <= to; x += step, i++) {
+    const h = y + ((i * 7) % 3) * 2;
+    d += `M${x - r} ${h + r * 3}a${r} ${r} 0 1 1 ${2 * r} 0V${h + r * 6}h${-2 * r}z`;
+    d += `M${x - r * 0.9} ${h + r * 0.2}a${r * 0.9} ${r * 0.9} 0 1 0 ${r * 1.8} 0a${r * 0.9} ${r * 0.9} 0 1 0 ${-r * 1.8} 0z`;
+    if (i % 5 === 2) d += `M${x + r * 0.8} ${h + r * 1.6}l${r * 0.9} ${-r * 3.2}l${r * 0.7} ${r * 0.2}l${-r * 0.6} ${r * 3.4}z`;
+  }
+  return d;
+}
+
+/**
+ * Wide scene per journey venue (decorative), drawn for banners: 1000×150 with
+ * the landmarks on the right, so narrow cards (which keep the right side) still
+ * show the room and wide banners show the whole place.
+ */
 export function VenueArt({ tier, className }: { tier: Tier; className?: string }) {
   const id = useId();
-  const sky: Record<Tier, [string, string]> = {
-    beginner: ['#3b2a5c', '#7b4a8a'],
-    improver: ['#2d3b55', '#5a6f8f'],
-    intermediate: ['#2a1630', '#8a2a54'],
-    advanced: ['#160f2a', '#4a1d7a'],
-    hero: ['#0b0820', '#b5341c'],
-  };
-  const [a, b] = sky[tier];
+  const g = (n: string) => `${id}${n}`;
+  const u = (n: string) => `url(#${g(n)})`;
+  const bulbs = ['#ffcb47', '#ff4d9a', '#7dd3fc', '#4ade80'];
   return (
-    <svg className={className} viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg className={className} viewBox="0 0 1000 150" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
       <defs>
-        <linearGradient id={`${id}v`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={a} />
-          <stop offset="1" stopColor={b} />
-        </linearGradient>
+        <linearGradient id={g('hot')} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ff7a2f" /><stop offset="1" stopColor="#e3266f" /></linearGradient>
+        <linearGradient id={g('lamp')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffd27a" stopOpacity="0.5" /><stop offset="1" stopColor="#ffd27a" stopOpacity="0" /></linearGradient>
+        <linearGradient id={g('beam')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff" stopOpacity="0.45" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></linearGradient>
+        <linearGradient id={g('sky1')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2c1f48" /><stop offset="1" stopColor="#70417f" /></linearGradient>
+        <linearGradient id={g('sky2')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1d2840" /><stop offset="1" stopColor="#5a6f8f" /></linearGradient>
+        <linearGradient id={g('inside')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffb35c" stopOpacity="0.55" /><stop offset="1" stopColor="#1b1320" stopOpacity="0.95" /></linearGradient>
+        <linearGradient id={g('sky3')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2a0f1e" /><stop offset="1" stopColor="#5a1838" /></linearGradient>
+        <linearGradient id={g('sky4')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0e0a22" /><stop offset="1" stopColor="#40186e" /></linearGradient>
+        <linearGradient id={g('sky5')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0b0820" /><stop offset="0.7" stopColor="#5a1a2a" /><stop offset="1" stopColor="#b5341c" /></linearGradient>
+        <linearGradient id={g('gold')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffe7a0" stopOpacity="0.55" /><stop offset="1" stopColor="#ffcb47" stopOpacity="0" /></linearGradient>
+        <pattern id={g('brick')} width="40" height="16" patternUnits="userSpaceOnUse">
+          <rect width="40" height="16" fill="#3a1424" />
+          <path d="M0 0.5H40M0 8.5H40M10 0.5V8.5M30 8.5V16" stroke="#2a0c18" strokeWidth="1.4" />
+        </pattern>
       </defs>
-      <rect width="160" height="90" fill={`url(#${id}v)`} />
+
       {tier === 'beginner' && (
         <g>
-          <rect x="16" y="20" width="34" height="28" rx="2" fill="#ffd27a" opacity="0.85" />
-          <path d="M33 20v28M16 34h34" stroke="#3b2a5c" strokeWidth="2" />
-          <rect x="0" y="66" width="160" height="24" fill="#2a1d3d" />
-          <rect x="96" y="44" width="34" height="26" rx="3" fill="#1b1320" />
-          <rect x="100" y="48" width="26" height="14" rx="2" fill="#4a3a2a" />
-          {[103, 109, 115, 121].map((x) => <circle key={x} cx={x} cy="66" r="1.4" fill="#d9c8a0" />)}
-          <path d="M70 70l18-40 4 2-14 38z" fill="#c98a4b" />
-          <ellipse cx="72" cy="72" rx="10" ry="8" fill="#a0612d" />
+          <rect width="1000" height="150" fill={u('sky1')} />
+          <path d="M300 12Q380 38 460 16T620 20T780 14T940 22T1000 14" stroke="#1d1430" strokeWidth="1.6" fill="none" />
+          {[330, 380, 430, 480, 530, 585, 640, 700, 760, 820, 880, 940].map((x, i) => (
+            <g key={x}>
+              <circle cx={x} cy={22 + ((i * 5) % 9)} r="8" fill={bulbs[i % 4]} opacity="0.22" />
+              <circle cx={x} cy={22 + ((i * 5) % 9)} r="3" fill={bulbs[i % 4]} />
+            </g>
+          ))}
+          <rect x="560" y="26" width="96" height="72" rx="3" fill="#191334" />
+          <circle cx="634" cy="46" r="11" fill="#fff3c4" />
+          <circle cx="628" cy="43" r="11" fill="#191334" />
+          {[[574, 40], [592, 74], [612, 34], [646, 80]].map(([x, y]) => <circle key={x} cx={x} cy={y} r="1.2" fill="#fff" />)}
+          <path d="M608 26v72M560 60h96" stroke="#4a3570" strokeWidth="3" />
+          <rect x="556" y="22" width="104" height="80" rx="4" fill="none" stroke="#4a3570" strokeWidth="5" />
+          <rect x="684" y="46" width="38" height="52" rx="2" fill="#e3266f" opacity="0.7" />
+          <path d="M707 52l-12 20h8l-4 18 14-22h-8z" fill="#fff" opacity="0.85" />
+          <rect x="730" y="56" width="30" height="38" rx="2" fill="#ffcb47" opacity="0.55" />
+          <rect x="420" y="58" width="110" height="6" rx="2" fill="#4a3570" />
+          {[426, 436, 446, 456, 470, 482].map((x, i) => <rect key={x} x={x} y={36 + (i % 2) * 4} width="8" height={22 - (i % 2) * 4} rx="1" fill={['#ff7a2f', '#7dd3fc', '#ffcb47', '#c79bff', '#4ade80', '#ff4d9a'][i]} opacity="0.7" />)}
+          <rect x="0" y="120" width="1000" height="30" fill="#1d1433" />
+          <ellipse cx="640" cy="134" rx="120" ry="10" fill="#3a2458" />
+          <rect x="370" y="98" width="150" height="28" rx="8" fill="#4b2f6a" />
+          <rect x="378" y="90" width="44" height="16" rx="6" fill="#8d6fb3" />
+          <path d="M806 56L774 134H868L836 56z" fill={u('lamp')} />
+          <path d="M808 56h26l-6-18h-14z" fill="#ffcb47" />
+          <path d="M821 56v68M810 124h22" stroke="#c9b48a" strokeWidth="2.5" />
+          <rect x="868" y="84" width="72" height="46" rx="4" fill="#120c1c" />
+          <rect x="875" y="96" width="58" height="30" rx="2" fill="#3b2b22" />
+          {[882, 890, 898].map((x) => <circle key={x} cx={x} cy="90" r="2" fill="#d9c8a0" />)}
+          <g transform="translate(966 62) rotate(14)">
+            <rect x="4" y="-48" width="6" height="64" rx="2" fill="#5a3a22" />
+            <path d="M-12 14c-2-10 10-14 14-6 4-8 16-4 14 6 6 4 4 20-14 22C-14 36-18 20-12 14z" fill={u('hot')} stroke="#1b1320" strokeWidth="2" />
+          </g>
         </g>
       )}
+
       {tier === 'improver' && (
         <g>
-          <rect x="20" y="22" width="120" height="68" fill="#9aa7bd" />
-          {Array.from({ length: 6 }, (_, i) => <rect key={i} x="24" y={26 + i * 7} width="112" height="5" fill="#b9c4d6" />)}
-          <rect x="24" y="68" width="112" height="22" fill="#1b1320" />
-          <circle cx="60" cy="74" r="5" fill="#ffcb47" />
-          <path d="M80 90l4-18h8l4 18z" fill="#000" opacity="0.7" />
+          <rect width="1000" height="150" fill={u('sky2')} />
+          {[[120, 24], [220, 14], [300, 40], [380, 20], [450, 34]].map(([x, y]) => <circle key={x} cx={x} cy={y} r="1.3" fill="#fff" opacity="0.7" />)}
+          <circle cx="250" cy="44" r="14" fill="#ffe7b0" opacity="0.18" />
+          <path d="M470 34L725 10L980 34V150H470z" fill="#8c98ae" />
+          <path d="M470 34L725 10L980 34" stroke="#3a4560" strokeWidth="6" fill="none" />
+          <rect x="520" y="48" width="410" height="102" fill="#11101a" />
+          <rect x="520" y="48" width="410" height="102" fill={u('inside')} />
+          {[0, 1, 2, 3].map((i) => <rect key={i} x="520" y={48 + i * 9} width="410" height="8" fill={i % 2 ? '#a6b2c6' : '#b9c4d6'} />)}
+          <rect x="566" y="98" width="42" height="46" rx="3" fill="#0c0a12" />
+          <rect x="566" y="82" width="42" height="18" rx="2" fill="#0c0a12" />
+          <rect x="571" y="104" width="32" height="34" rx="2" fill="#2a2230" />
+          <circle cx="700" cy="126" r="19" fill="#0c0a12" />
+          <circle cx="700" cy="126" r="13" fill="#1f1a28" />
+          <ellipse cx="742" cy="106" rx="17" ry="5" fill="#0c0a12" />
+          <path d="M742 106v38M660 110l14 0" stroke="#0c0a12" strokeWidth="3" />
+          <path d="M830 82V98" stroke="#2a2230" strokeWidth="2" />
+          <circle cx="830" cy="104" r="7" fill="#ffcb47" />
+          <circle cx="830" cy="104" r="26" fill="#ffcb47" opacity="0.16" />
+          <rect x="870" y="84" width="48" height="40" rx="2" fill="#2a2230" />
+          {[876, 888, 900, 910].map((x, i) => <path key={x} d={`M${x} 90v${12 + (i % 2) * 8}`} stroke="#8c98ae" strokeWidth="2.5" />)}
+          <rect x="0" y="140" width="1000" height="10" fill="#1b2233" />
         </g>
       )}
+
       {tier === 'intermediate' && (
         <g>
-          <rect x="44" y="12" width="72" height="24" rx="6" fill="none" stroke="#ff4d9a" strokeWidth="3" />
-          <text x="80" y="30" textAnchor="middle" fontSize="15" fontWeight="900" fill="#ff8ac0" letterSpacing="3">LIVE</text>
-          <rect x="0" y="70" width="160" height="20" fill="#1b0f20" />
-          <path d="M78 70V48M70 48h16" stroke="#cfcfcf" strokeWidth="2" />
-          {[24, 40, 118, 136].map((x) => <circle key={x} cx={x} cy="66" r="6" fill="#000" opacity="0.6" />)}
+          <rect width="1000" height="150" fill={u('sky3')} />
+          <rect x="300" y="0" width="700" height="150" fill={u('brick')} opacity="0.85" />
+          <rect x="300" y="0" width="700" height="150" fill={u('sky3')} opacity="0.35" />
+          <path d="M640 0L572 150H708z" fill={u('beam')} opacity="0.6" />
+          <g>
+            <rect x="770" y="22" width="120" height="42" rx="10" fill="none" stroke="#ff4d9a" strokeWidth="9" opacity="0.25" />
+            <rect x="770" y="22" width="120" height="42" rx="10" fill="none" stroke="#ff8ac0" strokeWidth="3" />
+            <text x="830" y="52" textAnchor="middle" fontSize="24" fontWeight="900" fill="#ffd0e6" letterSpacing="5" fontFamily="system-ui, sans-serif">LIVE</text>
+          </g>
+          <rect x="0" y="122" width="1000" height="28" fill="#1b0f20" />
+          <rect x="560" y="116" width="170" height="8" rx="2" fill="#2e1830" />
+          <path d="M640 116V74M630 74h20" stroke="#d6d0dc" strokeWidth="2.5" />
+          <circle cx="640" cy="72" r="5" fill="#2a2230" stroke="#d6d0dc" strokeWidth="1.5" />
+          <path d="M676 116V98h22v18M680 98v18M694 98v18" stroke="#3b2a3e" strokeWidth="3" fill="none" />
+          <path d={crowdPath(118, 330, 530, 34, 6)} fill="#0e0710" />
+          <path d={crowdPath(118, 760, 990, 34, 6)} fill="#0e0710" />
+          {[380, 450, 820, 900].map((x) => <g key={x}><rect x={x - 16} y="126" width="32" height="4" rx="2" fill="#2e1830" /><circle cx={x} cy="122" r="5" fill="#ffcb47" opacity="0.25" /><circle cx={x} cy="122" r="1.8" fill="#ffe08a" /></g>)}
         </g>
       )}
+
       {tier === 'advanced' && (
         <g>
-          {[30, 80, 130].map((x, i) => (
-            <path key={x} d={`M${x} 0L${x - 24} 90h48z`} fill={['#7c5cff', '#ff4d9a', '#22d3ee'][i]} opacity="0.3" />
+          <rect width="1000" height="150" fill={u('sky4')} />
+          {([[560, '#7c5cff'], [700, '#ff4d9a'], [820, '#22d3ee'], [940, '#7c5cff']] as const).map(([x, c], i) => (
+            <path key={x} d={`M${x} 0L${x - 70 + i * 30} 150h${80 - i * 10}z`} fill={c} opacity="0.28" />
           ))}
-          <rect x="0" y="72" width="160" height="18" fill="#0b0716" />
-          {Array.from({ length: 12 }, (_, i) => <circle key={i} cx={8 + i * 13.5} cy="74" r="6" fill="#000" />)}
+          {[[620, 30], [760, 18], [880, 40]].map(([x, y]) => <circle key={x} cx={x} cy={y} r="22" fill="#ff4d9a" opacity="0.08" />)}
+          <rect x="520" y="70" width="40" height="64" rx="3" fill="#0b0716" stroke="#2a1f44" strokeWidth="2" />
+          <rect x="950" y="70" width="40" height="64" rx="3" fill="#0b0716" stroke="#2a1f44" strokeWidth="2" />
+          {[540, 970].map((x) => <g key={x}><circle cx={x} cy="88" r="9" fill="#1a1230" /><circle cx={x} cy="116" r="12" fill="#1a1230" /></g>)}
+          <rect x="560" y="96" width="390" height="10" fill="#140c26" />
+          <path d={crowdPath(112, 300, 1000, 22, 7)} fill="#05030c" />
+          <rect x="0" y="138" width="1000" height="12" fill="#05030c" />
         </g>
       )}
+
       {tier === 'hero' && (
         <g>
-          {[10, 50, 110, 150].map((x, i) => (
-            <path key={x} d={`M${x} 0L${x + (i < 2 ? 30 : -30)} 90h-20z`} fill="#ffcb47" opacity="0.28" />
+          <rect width="1000" height="150" fill={u('sky5')} />
+          <rect x="360" y="10" width="640" height="8" fill="#14101c" />
+          <path d={Array.from({ length: 32 }, (_, i) => `M${360 + i * 20} 10l10 8l10-8`).join('')} stroke="#2a2433" strokeWidth="1.5" fill="none" />
+          {Array.from({ length: 9 }, (_, i) => 400 + i * 70).map((x, i) => (
+            <g key={x}>
+              <path d={`M${x} 18L${x + (i < 4 ? -60 : 60) + (i - 4) * 4} 150h50z`} fill={u('gold')} opacity="0.5" />
+              <circle cx={x} cy="20" r="4" fill="#fff6d0" />
+            </g>
           ))}
-          <rect x="30" y="54" width="100" height="10" fill="#1b1320" />
-          {Array.from({ length: 22 }, (_, i) => <circle key={i} cx={4 + i * 7.3} cy={80 + (i % 2) * 3} r="5" fill="#000" />)}
-          {Array.from({ length: 9 }, (_, i) => <circle key={i} cx={12 + i * 17} cy={70 + (i % 3) * 2} r="1.6" fill="#fff6b0" />)}
+          <rect x="560" y="72" width="300" height="12" fill="#1b1320" />
+          <rect x="420" y="44" width="70" height="44" rx="3" fill="#1b1320" stroke="#ff7a2f" strokeWidth="2" />
+          <rect x="930" y="44" width="70" height="44" rx="3" fill="#1b1320" stroke="#ff7a2f" strokeWidth="2" />
+          <rect x="426" y="50" width="58" height="32" fill="#ff7a2f" opacity="0.25" />
+          <rect x="936" y="50" width="58" height="32" fill="#ff7a2f" opacity="0.25" />
+          <path d={crowdPath(100, 280, 1000, 16, 6)} fill="#06040a" />
+          <path d={crowdPath(116, 290, 1000, 15, 6)} fill="#030206" />
+          {Array.from({ length: 26 }, (_, i) => 300 + i * 27).map((x, i) => <circle key={x} cx={x} cy={100 + (i % 3) * 5} r="1.8" fill="#fff6b0" />)}
+          {[[880, 26], [930, 18], [970, 32]].map(([x, y]) => (
+            <g key={x} stroke="#ffcb47" strokeWidth="1.5" opacity="0.8">
+              {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <path key={a} d={`M${x} ${y}l${Math.cos((a * Math.PI) / 180) * 8} ${Math.sin((a * Math.PI) / 180) * 8}`} />)}
+            </g>
+          ))}
         </g>
       )}
     </svg>
+  );
+}
+
+/** "Lesson cleared" confetti: falling guitar picks (decorative, pointer-transparent). */
+export function PickConfetti({ count = 26 }: { count?: number }) {
+  const colors = ['#ff7a2f', '#ffcb47', '#e3266f', '#c79bff', '#4ade80', '#7dd3fc', '#ff8a4c'];
+  return (
+    <div className="confetti" aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <i
+          key={i}
+          style={{
+            left: `${(i * 37) % 100}%`,
+            background: colors[i % colors.length],
+            animationDelay: `${((i * 13) % 20) / 10}s`,
+            animationDuration: `${2.6 + ((i * 7) % 12) / 10}s`,
+            width: 12 + (i % 3) * 3,
+            height: 13 + (i % 3) * 3,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The guitar's parts, seen from the front as it faces you on a stand: headstock on
+ * the left, string 6 on top (nearest the ceiling), string 1 below. Mirrored for
+ * left-handed players; labels stay readable.
+ */
+export function GuitarParts({ leftHanded = false }: { leftHanded?: boolean }) {
+  const id = useId();
+  const pin = (n: number, x: number, y: number, tx: number, ty: number, label: string, toY: number) => (
+    <g key={n}>
+      <path d={`M${x} ${y > toY ? y - 14 : y + 14}V${toY}`} stroke="#ff8a4c" strokeWidth="2" strokeDasharray="3 3" />
+      <circle cx={x} cy={y} r="14" fill={`url(#${id}pin)`} />
+      <text x={x} y={y + 5} textAnchor="middle" fill="#fff" fontWeight="800" fontSize="14" transform={leftHanded ? `translate(${2 * x} 0) scale(-1 1)` : undefined}>{n}</text>
+      <text x={tx} y={ty} fill="var(--text)" fontWeight="700" fontSize="14" transform={leftHanded ? `translate(${2 * tx} 0) scale(-1 1)` : undefined} textAnchor={leftHanded ? 'end' : 'start'}>{label}</text>
+    </g>
+  );
+  return (
+    <figure className="guitar-parts">
+      <svg viewBox="0 0 640 270" role="img" aria-label={`An acoustic guitar seen from the front, headstock on the ${leftHanded ? 'right' : 'left'}. 1: headstock and tuning pegs. 2: neck and frets. 3: body and sound hole. 4: the six strings — string 6 (thickest) on top, string 1 (thinnest) below.`}>
+        <defs>
+          <radialGradient id={`${id}spot`} cx="0.6" cy="0.5" r="0.6"><stop offset="0" stopColor="#ffb070" stopOpacity="0.25" /><stop offset="1" stopColor="#ffb070" stopOpacity="0" /></radialGradient>
+          <linearGradient id={`${id}wood`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#e9b77a" /><stop offset="1" stopColor="#b0692f" /></linearGradient>
+          <linearGradient id={`${id}neck`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5b3520" /><stop offset="1" stopColor="#3b2214" /></linearGradient>
+          <linearGradient id={`${id}pin`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ff7a2f" /><stop offset="1" stopColor="#e3266f" /></linearGradient>
+        </defs>
+        <g transform={leftHanded ? 'translate(640 0) scale(-1 1)' : undefined} fontFamily="system-ui, sans-serif">
+          <rect width="640" height="270" fill={`url(#${id}spot)`} />
+          <ellipse cx="380" cy="248" rx="250" ry="9" fill="#000" opacity="0.25" />
+          <path d="M372 140C372 80 404 62 440 72C462 78 476 86 494 80C544 50 616 60 616 140C616 220 544 230 494 200C476 194 462 202 440 208C404 218 372 200 372 140Z" fill={`url(#${id}wood)`} stroke="#3a2414" strokeWidth="3" />
+          <path d="M380 140C380 88 408 74 440 82" stroke="#fff" strokeOpacity="0.25" strokeWidth="4" fill="none" strokeLinecap="round" />
+          <circle cx="456" cy="140" r="33" fill="none" stroke="#7a4a24" strokeWidth="4" />
+          <circle cx="456" cy="140" r="26" fill="#1d120a" />
+          <rect x="548" y="114" width="16" height="52" rx="4" fill="#3a2414" />
+          <rect x="553" y="118" width="3" height="44" fill="#efe6d6" />
+          <rect x="98" y="122" width="290" height="36" fill={`url(#${id}neck)`} />
+          <path d="M128 122v36M156 122v36M183 122v36M208 122v36M232 122v36M254 122v36M275 122v36M295 122v36M314 122v36M332 122v36M349 122v36M365 122v36" stroke="#cfc8bd" strokeWidth="2.4" />
+          {[169.5, 220, 264.5, 304.5].map((x) => <circle key={x} cx={x} cy="140" r="3.2" fill="#efe6d6" />)}
+          <circle cx="357" cy="132" r="3" fill="#efe6d6" />
+          <circle cx="357" cy="148" r="3" fill="#efe6d6" />
+          <rect x="93" y="120" width="6" height="40" rx="1.5" fill="#efe6d6" />
+          <path d="M22 112L93 120V160L22 168Z" fill="#3a2414" stroke="#24150b" strokeWidth="2" />
+          <g fill="#d8d2c8" stroke="#6d665c" strokeWidth="1.5">
+            {[[36, 104], [56, 106], [76, 108], [36, 176], [56, 174], [76, 172]].map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="6" />)}
+          </g>
+          <path d="M36 124L96 125H556" stroke="#d4a35c" strokeWidth="2.4" fill="none" />
+          <path d="M56 126L96 131H556" stroke="#d4a35c" strokeWidth="2.1" fill="none" />
+          <path d="M76 128L96 137H556" stroke="#d4a35c" strokeWidth="1.8" fill="none" />
+          <path d="M76 152L96 143H556" stroke="#ece6da" strokeWidth="1.5" fill="none" />
+          <path d="M56 154L96 149H556" stroke="#ece6da" strokeWidth="1.2" fill="none" />
+          <path d="M36 156L96 155H556" stroke="#ece6da" strokeWidth="0.9" fill="none" />
+          {pin(1, 56, 44, 76, 40, 'Headstock & pegs', 96)}
+          {pin(2, 232, 44, 252, 40, 'Neck & frets', 118)}
+          {pin(3, 456, 242, 476, 247, 'Body & sound hole', 176)}
+          {pin(4, 180, 228, 200, 233, 'Strings: 6 on top, 1 below', 160)}
+        </g>
+      </svg>
+    </figure>
   );
 }
 
@@ -251,7 +432,7 @@ export function RankBadge({ level, size = 56, max = 12 }: { level: number; size?
 /** Streak flame with day count. */
 export function Flame({ size = 28, lit = true }: { size?: number; lit?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" className={lit ? 'flame-lit' : undefined}>
       <path d="M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 2 4 4 5 0-4 0-7 1-11z" fill={lit ? 'var(--hot-1)' : 'var(--surface-3)'} />
       <path d="M16 14c1 3 5 5 5 9a5 5 0 0 1-10 0c0-3 2-4 3-6 0 2 1 3 2 3 0-2-1-4 0-6z" fill={lit ? '#ffd166' : 'var(--border)'} />
     </svg>
@@ -320,5 +501,76 @@ export function ChordBox({ name, frets, fingers, leftHanded = false, size = 120 
       </svg>
       {name && <figcaption>{name}</figcaption>}
     </figure>
+  );
+}
+
+/** Home studio: a song waveform with sections above a small mixing desk (decorative). */
+export function StudioArt() {
+  const id = useId();
+  const bars = Array.from({ length: 38 }, (_, i) => {
+    const x = 44 + i * 10;
+    const up = 10 + ((i * 37) % 23) + (i % 7 === 3 ? 10 : 0);
+    const down = 8 + ((i * 29) % 21) + (i % 5 === 1 ? 8 : 0);
+    return `M${x} 68V${68 - up * 0.9}M${x} 68V${68 + down * 0.9}`;
+  }).join('');
+  return (
+    <svg viewBox="0 0 460 250" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id={`${id}desk`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0d1426" /><stop offset="1" stopColor="#271238" /></linearGradient>
+        <linearGradient id={`${id}wave`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#22d3ee" /><stop offset="0.5" stopColor="#ff7a2f" /><stop offset="1" stopColor="#e3266f" /></linearGradient>
+        <linearGradient id={`${id}vu`} x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="#4ade80" /><stop offset="0.7" stopColor="#ffcb47" /><stop offset="1" stopColor="#ff7a6e" /></linearGradient>
+      </defs>
+      <rect width="460" height="250" fill={`url(#${id}desk)`} />
+      <rect x="30" y="20" width="400" height="96" rx="10" fill="#090b14" stroke="#2b3550" strokeWidth="2" />
+      <path d={bars} stroke={`url(#${id}wave)`} strokeWidth="3" strokeLinecap="round" />
+      <path d="M174 24V112" stroke="#fff" strokeWidth="2" opacity="0.8" />
+      <g fontFamily="Bebas Neue, Impact, sans-serif" fontSize="13" fill="#9fb0d0" letterSpacing="1">
+        <text x="48" y="36">VERSE</text>
+        <text x="180" y="36">CHORUS</text>
+        <text x="318" y="36">VERSE</text>
+      </g>
+      <rect x="30" y="128" width="400" height="104" rx="10" fill="#141827" stroke="#2b3550" strokeWidth="2" />
+      {([[56, 170], [100, 152], [144, 186], [188, 162], [232, 178]] as const).map(([x, y], i) => (
+        <g key={x}>
+          <rect x={x} y="144" width="6" height="72" rx="3" fill="#0a0c14" />
+          <rect x={x - 8} y={y} width="22" height="12" rx="3" fill={i === 3 ? '#ff8a4c' : '#cfd6e6'} />
+        </g>
+      ))}
+      <rect x="290" y="144" width="14" height="72" rx="3" fill="#0a0c14" />
+      <rect x="292" y="170" width="10" height="44" rx="2" fill={`url(#${id}vu)`} />
+      <rect x="312" y="144" width="14" height="72" rx="3" fill="#0a0c14" />
+      <rect x="314" y="160" width="10" height="54" rx="2" fill={`url(#${id}vu)`} />
+      {[[366, 158], [398, 158], [366, 194], [398, 194]].map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="9" fill="#cfd6e6" />)}
+    </svg>
+  );
+}
+
+/** Small guitar silhouettes for choosing your instrument (decorative; the label names it). */
+export function GuitarIcon({ kind }: { kind: 'acoustic' | 'electric' | 'classical' }) {
+  const id = useId();
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id={`${id}b`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={kind === 'electric' ? '#ff7a2f' : kind === 'classical' ? '#f0c58a' : '#e9b77a'} />
+          <stop offset="1" stopColor={kind === 'electric' ? '#e3266f' : kind === 'classical' ? '#c98a4b' : '#b0692f'} />
+        </linearGradient>
+      </defs>
+      <g transform="rotate(-35 32 32)">
+        <rect x="29" y="2" width="6" height="30" rx="1.5" fill="#5a3a22" />
+        <rect x={kind === 'classical' ? 26 : 27} y="0" width={kind === 'classical' ? 12 : 10} height="8" rx="2" fill="#3a2414" />
+        {kind === 'electric' ? (
+          <path d="M22 30c-6 2-8 8-6 13 1 4-2 6-1 10 2 6 11 9 17 9s15-3 17-9c1-4-2-6-1-10 2-5 0-11-6-13-3-1-4 4-7 4h-6c-3 0-4-5-7-4z" fill={`url(#${id}b)`} stroke="#1b1320" strokeWidth="2" />
+        ) : (
+          <path d="M32 26c-6 0-10 3-10 8 0 3 2 4 2 6-4 2-7 6-7 11 0 7 7 11 15 11s15-4 15-11c0-5-3-9-7-11 0-2 2-3 2-6 0-5-4-8-10-8z" fill={`url(#${id}b)`} stroke="#1b1320" strokeWidth="2" />
+        )}
+        {kind === 'electric' ? (
+          <g fill="#1b1320"><rect x="27" y="40" width="10" height="4" rx="1" /><rect x="27" y="47" width="10" height="4" rx="1" /></g>
+        ) : (
+          <circle cx="32" cy="42" r="4.5" fill="#1b1320" stroke={kind === 'classical' ? '#7a4a24' : 'none'} strokeWidth="2" />
+        )}
+        <rect x="27" y="54" width="10" height="3" rx="1" fill="#1b1320" />
+      </g>
+    </svg>
   );
 }

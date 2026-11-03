@@ -68,6 +68,9 @@
             "off"
           ]
         },
+        "stageEffects": {
+          "type": "boolean"
+        },
         "highContrast": {
           "type": "boolean"
         },

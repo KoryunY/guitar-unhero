@@ -28,6 +28,8 @@ export interface Settings {
   deviceId: string | null;
   outputRoute: OutputRoute;
   reducedMotion: 'system' | 'on' | 'off';
+  /** Decorative stage lighting, bokeh and celebrations. Off: a plain background. */
+  stageEffects: boolean;
   highContrast: boolean;
   guideLevel: number;
   metronomeLevel: number;
@@ -54,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   deviceId: null,
   outputRoute: 'unknown',
   reducedMotion: 'system',
+  stageEffects: true,
   highContrast: false,
   guideLevel: 0.8,
   metronomeLevel: 0.6,

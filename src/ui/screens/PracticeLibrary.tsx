@@ -5,7 +5,7 @@ import type { SongRecord } from '../../storage/types';
 import { useApp } from '../AppContext';
 import { navigate, PageHead } from '../App';
 import { Icon } from '../icons';
-import { StageArt } from '../art';
+import { Coach, StageArt } from '../art';
 import { CHAPTERS } from '../../learning/chapters';
 import { findLesson } from '../../learning/lessons';
 
@@ -56,6 +56,14 @@ export function PracticeLibrary() {
                 <Icon name="chevron" size={20} />
               </a>
             ))}
+          </div>
+        </>
+      )}
+      {songs && songs.length === 0 && (
+        <>
+          <div className="section-title">Your songs</div>
+          <div className="card empty-state">
+            <Coach mood="think"><p>No songs yet. Add one you love: a recording, a pasted tab or chords, or a file.</p></Coach>
           </div>
         </>
       )}

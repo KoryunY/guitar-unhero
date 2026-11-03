@@ -183,11 +183,17 @@ export function TunerScreen() {
         <Segmented label="Tuner mode" value={mode} options={[{ value: 'string', label: 'Guitar strings' }, { value: 'chromatic', label: 'Any note' }]} onChange={setMode} />
       )}
       <div className="tuner-layout">
-      <div className="card stack" style={{ alignItems: 'stretch' }}>
-        <div className="tuner-note" aria-hidden="true" style={{ color: locked ? 'var(--correct)' : undefined }}>
-          {reading?.noteName ? pitchClassName(Math.round(reading.midiFloat ?? 0)) : mode === 'string' ? pitchClassName(openMidi(str)) : '–'}
+      <div className="card stack amp" style={{ alignItems: 'stretch' }}>
+        <div className="amp-plate" aria-hidden="true">
+          <span className="t-logo">Guitar Unhero</span>
+          <span className={`jewel${mic === 'on' ? ' on' : ''}`}>{mic === 'on' ? 'Listening' : 'Standby'}</span>
         </div>
-        <Gauge cents={cents} locked={locked} />
+        <div className="grille">
+          <div className={`tuner-note${locked ? ' locked' : ''}`} aria-hidden="true">
+            {reading?.noteName ? pitchClassName(Math.round(reading.midiFloat ?? 0)) : mode === 'string' ? pitchClassName(openMidi(str)) : '–'}
+          </div>
+          <Gauge cents={cents} locked={locked} />
+        </div>
         <p role="status" aria-live="polite" data-testid="tuner-status" className={`t-card ${locked ? 'status-intune' : ''}`} style={{ textAlign: 'center', margin: 0 }}>
           {reading?.noteName && cents !== null ? `${reading.noteName}, ${Math.round(cents) === 0 ? 'centered' : `${Math.abs(Math.round(cents))} cents ${cents < 0 ? 'flat' : 'sharp'}`}${locked ? ', in tune' : ''}. ` : ''}
           {plain}

@@ -140,6 +140,44 @@ export function Callout({ kind = 'info', children, testId }: { kind?: 'info' | '
   );
 }
 
+/** Shimmering placeholder while a screen loads (announced as "Loading…"). */
+export function Skeleton() {
+  return (
+    <div className="skeleton" role="status">
+      <span className="sr-only">Loading…</span>
+      <i style={{ height: 48, width: '42%' }} aria-hidden="true" />
+      <i style={{ height: 220 }} aria-hidden="true" />
+      <i style={{ height: 76 }} aria-hidden="true" />
+      <i style={{ height: 76, width: '70%' }} aria-hidden="true" />
+    </div>
+  );
+}
+
+/** A number that counts up to its value once (instant with reduced motion). */
+export function useCountUp(value: number, ms = 800): number {
+  const [shown, setShown] = useState(value);
+  const from = useRef(0);
+  useEffect(() => {
+    if (document.documentElement.dataset.motion === 'reduce' || value === from.current) {
+      from.current = value;
+      setShown(value);
+      return;
+    }
+    const start = performance.now();
+    const a = from.current;
+    let raf = 0;
+    const tick = (now: number) => {
+      const k = Math.min(1, (now - start) / ms);
+      setShown(Math.round(a + (value - a) * (1 - (1 - k) ** 3)));
+      if (k < 1) raf = requestAnimationFrame(tick);
+      else from.current = value;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, ms]);
+  return shown;
+}
+
 export function TopBar({ title, back, children }: { title: string; back?: () => void; children?: ReactNode }) {
   return (
     <div className="topbar">

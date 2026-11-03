@@ -25,6 +25,10 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
 
   useEffect(() => {
     let raf = 0;
+    // Sparks for notes judged correct (decorative; never for misses).
+    const sparked = new Set<string>();
+    let primed = false;
+    const sparks: { x: number; y: number; vx: number; vy: number; born: number; hue: string }[] = [];
     const draw = () => {
       raf = requestAnimationFrame(draw);
       const canvas = canvasRef.current;
@@ -66,6 +70,37 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
       g.fillRect(0, 0, W, H);
       g.fillStyle = 'rgba(0,0,0,0.35)';
       g.fillRect(leftHanded ? W - labelW : 0, 0, labelW, H);
+      const root = document.documentElement.dataset;
+      const fx = !reducedMotion && root.effects !== 'off' && root.contrast !== 'high';
+      if (root.contrast !== 'high') {
+        // Stage lighting: soft side lamps, and a spotlight centred exactly on the hit line.
+        for (const f of [0.42, 0.66, 0.9]) {
+          const lx = leftHanded ? playR - playW * f : playL + playW * f;
+          const cone = g.createLinearGradient(0, 0, 0, H * 0.7);
+          cone.addColorStop(0, 'rgba(255,226,196,0.10)');
+          cone.addColorStop(1, 'rgba(255,226,196,0)');
+          g.fillStyle = cone;
+          g.beginPath();
+          g.moveTo(lx - 6, 0);
+          g.lineTo(lx + 6, 0);
+          g.lineTo(lx + playW * 0.08, H * 0.7);
+          g.lineTo(lx - playW * 0.08, H * 0.7);
+          g.closePath();
+          g.fill();
+        }
+        const spot = g.createLinearGradient(0, 0, 0, H);
+        spot.addColorStop(0, 'rgba(255,210,168,0.26)');
+        spot.addColorStop(0.6, 'rgba(255,154,92,0.10)');
+        spot.addColorStop(1, 'rgba(255,122,47,0.05)');
+        g.fillStyle = spot;
+        g.beginPath();
+        g.moveTo(hitX - 7, 0);
+        g.lineTo(hitX + 7, 0);
+        g.lineTo(hitX + Math.min(46, playW * 0.05), H);
+        g.lineTo(hitX - Math.min(46, playW * 0.05), H);
+        g.closePath();
+        g.fill();
+      }
       // Beat / bar lines.
       // Beat lines follow the tempo map (aligned songs: tick 0 is not at 0 s and tempo drifts).
       const firstBeat = Math.floor(t.secToTick(pos - (hitFrac * playW) / pps) / 960) - 1;
@@ -105,10 +140,21 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
         g.lineTo(playR, top + i * laneH + laneH / 2);
         g.stroke();
       }
-      // Hit line with a glow.
+      // Hit line with a glow that swells on each beat while playing (from the audio clock).
+      let pulse = 0;
+      if (fx && t.state === 'playing') {
+        const tick = t.secToTick(pos);
+        const frac = (((tick % 960) + 960) % 960) / 960;
+        pulse = (1 - frac) ** 3;
+        const glow = g.createRadialGradient(hitX, H / 2, 0, hitX, H / 2, Math.max(60, H * 0.45));
+        glow.addColorStop(0, `rgba(255,140,80,${0.22 * pulse})`);
+        glow.addColorStop(1, 'rgba(255,140,80,0)');
+        g.fillStyle = glow;
+        g.fillRect(hitX - H, 0, 2 * H, H);
+      }
       g.save();
       g.shadowColor = '#ff7a2f';
-      g.shadowBlur = 16;
+      g.shadowBlur = 16 + 18 * pulse;
       g.strokeStyle = '#ffb27a';
       g.lineWidth = 4;
       g.beginPath();
@@ -166,6 +212,42 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
         g.fillStyle = '#ffffff';
         const side = leftHanded ? -1 : 1;
         if (j) g.fillText(GLYPH[j.state], x + side * (r + 12), y + r * 0.3);
+      }
+
+      // Sparks where a note was played right.
+      if (fx) {
+        const now = performance.now();
+        for (const ev of t.events) {
+          const key = `${iter}:${ev.id}`;
+          const j = controller.judgmentByNote.get(key);
+          if (!j || j.state !== 'correct' || sparked.has(key)) continue;
+          sparked.add(key);
+          if (!primed) continue;
+          const y = top + (ev.string - 1) * laneH + laneH / 2;
+          for (let k = 0; k < 14; k++) {
+            const a = (k / 14) * Math.PI * 2 + Math.random() * 0.4;
+            const v = 60 + Math.random() * 120;
+            sparks.push({ x: hitX, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, born: now, hue: k % 3 === 0 ? '#4ade80' : k % 3 === 1 ? '#ffcb47' : '#ffb27a' });
+          }
+        }
+        primed = true;
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        for (let k = sparks.length - 1; k >= 0; k--) {
+          const sp = sparks[k]!;
+          const age = (now - sp.born) / 1000;
+          if (age > 0.65) {
+            sparks.splice(k, 1);
+            continue;
+          }
+          const life = 1 - age / 0.65;
+          g.globalAlpha = life;
+          g.fillStyle = sp.hue;
+          g.beginPath();
+          g.arc(sp.x + sp.vx * age, sp.y + sp.vy * age + 140 * age * age, 1.5 + 2.5 * life, 0, Math.PI * 2);
+          g.fill();
+        }
+        g.restore();
       }
 
       // Count-in overlay.
