@@ -1,0 +1,27 @@
+# Decisions (M0–M1)
+
+Routine, reversible implementation choices made during the M1 run. Spec references are to `GUITAR-UNHERO-MASTER-SPEC.md`.
+
+| ID | Decision | Why / alternatives |
+|---|---|---|
+| D-01 | One Vite + React 19 + TypeScript app at the repo root; spec "packages" are directories under `src/` (`domain`, `transport`, `audio`, `assessment`, `learning`, `storage`). | §9.1 allows directories before M1 works; avoids workspace overhead. Split into pnpm packages later if needed. |
+| D-02 | Pinned: react 19.3.1, vite 8.3.5, @vitejs/plugin-react 6.2.1, typescript 6.0.3, vitest 5.1.0, @playwright/test 1.63.0 (matches the preinstalled Chromium), ajv 8.20.0, ajv-formats 3.0.1. | TypeScript 7 (native port) skipped for tooling compatibility. Lockfile committed. |
+| D-03 | No state library; React context + plain classes (`Transport`, `PracticeController`, `AudioEngine`). | §9.1: avoid a framework before a simple model proves insufficient. |
+| D-04 | Pitch: original FFT-based YIN, 4096-sample buffer, 512-sample hop, 60–1500 Hz, threshold 0.12, parabolic interpolation on the raw difference function. Runs in a Web Worker. | §AUD-03. Synthetic error ≪1 cent; ~1.5–1.8 ms per frame in Node. No third-party DSP licence questions. |
+| D-05 | Onsets: energy rise ≥7 dB over a 50 ms minimum on 64-sample sub-blocks, above an adaptive gate (noise floor +12 dB, ≥−58 dBFS), 90 ms refractory. Attack pitch = median of frames whose whole buffer lies after the onset (≈140 ms evidence). | Simple, deterministic, testable; held notes give one attack. Re-evaluate on real recordings (GU-101). |
+| D-06 | Capture: AudioWorklet posts 512-frame chunks stamped with `currentFrame` straight to the worker over a `MessageChannel`; worklet output goes to a zero-gain node (keep-alive, never audible). | §AUD-02/04/05; no SharedArrayBuffer dependency. |
+| D-07 | Ajv compiles schemas at runtime, so the production CSP includes `'unsafe-eval'`. | Simplest correct validator with formats enabled. Follow-up: precompile with Ajv standalone and drop `unsafe-eval`. |
+| D-08 | Count-in = 4 beats at the current rate; rate/mode/loop changes pause and restart with a count-in; seek starts a new attempt. | §6.3 "pause/restart the segment". |
+| D-09 | Matching windows: search ±400 ms bounded by half the neighbour gap; tolerances ±50 cents, ±150 ms calibrated / ±250 ms uncalibrated (labeled approximate); octave-only differences are `uncertain`. Policy id `beginner-1`. | §6.5 beginner tolerances; wider uncalibrated window per §6.2. |
+| D-10 | A target with no attack is `incorrect` (reason `no_attack_detected`) only when ≥50 % of its window had usable listening; otherwise `not_assessed`/`uncertain`. Attacks without any pitch evidence are ignored. | §6.5 rule 6; prevents clicks/knocks from being graded. |
+| D-11 | Wait mode records the **first** assessed attempt per target (with `recovered_after_retry`) and accepts an attack up to 300 ms before waiting began; rhythm is `not_assessed`. | Honest first-try accuracy without forcing a replay for a slightly early note. |
+| D-12 | Leakage: while assessing, synthesized guide notes play only when the output route is "headphones"; on speakers/unknown they're muted with a visible notice. Demonstrations/reference tones block assessment for their duration +350 ms. Metronome uses aperiodic noise clicks. | §5.4. A leakage regression test proves the guide would otherwise be "heard". |
+| D-13 | Calibration: one combined `deltaIO`. Loopback = 8 speaker clicks, median lag, accepted if ≥6 heard and IQR ≤20 ms; manual slider labeled "personal adjustment". Valid only for the same device/sample rate/route (manual: same route). | §6.2 single convention, no double subtraction. |
+| D-14 | Tuner: 150 ms median history, lock after ≥300 ms stable (spread ≤12 cents) within ±5 cents, unlock beyond ±8; harmonic (≈+12/+19/+24 semitones) and >300-cent cases never give a direction. | §5.2. |
+| D-15 | Noise floor falls fast, rises ≈3 dB/s and never while a clearly periodic note sounds. | A sustained string must not be absorbed into the "noise". |
+| D-16 | Storage: IndexedDB `guitar-unhero` v1 with stores `settings`, `lessons`, `summaries`. Evidence per step: `sensor`, `self_reported`, `simulated`; strongest wins but a self-report never upgrades to sensor; a lesson is `sensor` only if every attempt step was heard. Export strips device IDs; import is schema+semantic validated, flags records `imported`, and replaces local data after confirmation. | §10.2, AC-06, AC-20. |
+| D-17 | Simulation mode generates labeled `simulated:true` attacks (deterministic "accurate/mixed/silent" profiles or buttons). Practice ignores attacks whose `simulated` flag doesn't match the selected input. | AC-06. |
+| D-18 | Lesson-1 step "Stop the ringing" reports "I heard the sound stop" when a heard note drops below the gate for 250 ms — it never claims *how* it was stopped. | §5.3 no technique measurement. |
+| D-19 | Practice lane view: string 1 on top, time right→left toward a hit line at 16 %; left-handed mirrors direction (left→right) and label side only. Reduced motion advances in whole beats. | §4.3. |
+| D-20 | `Documents/` is the documentation directory (the spec's `docs/`). The supplied fixture is imported from `Documents/` directly so it cannot drift. | Start-prompt instruction. |
+| D-21 | Extra original drills (`high-e-open`, `high-e-frets`, `b-string-frets`) were authored so lessons don't jump straight to the two-string fixture. | Fixture notes say to use it after single-string lessons. |

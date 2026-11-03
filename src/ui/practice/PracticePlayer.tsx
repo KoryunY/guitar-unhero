@@ -78,7 +78,7 @@ export function PracticePlayer({ score, onSummary, compact = false }: { score: S
 
   const reducedMotion = document.documentElement.dataset.motion === 'reduce';
   const beats = Math.round(score.durationTicks / 960);
-  const posBeat = Math.min(beats - 1, Math.max(0, Math.floor(t.positionSec / t.beatSec + 1e-6)));
+  const posBeat = Math.min(beats - 1, Math.max(0, Math.floor(t.positionAt(engine.now) / t.beatSec + 1e-6)));
   const loopA = t.loop ? t.loop.aTick / 960 : 0;
   const loopB = t.loop ? t.loop.bTick / 960 : beats;
   const running = t.running;

@@ -143,11 +143,13 @@ export class FixedTempoMatcher {
       };
     }
 
-    const candidates = this.attacks.filter((a) => !this.used.has(a.id) && a.onsetContextSec >= w0 && a.onsetContextSec < w1);
+    // Attacks with no pitch evidence at all (clicks, knocks, metronome leakage) are not
+    // musical evidence: they can neither earn nor lose credit, and their timing is never graded.
+    const candidates = this.attacks.filter((a) => a.pitchMidiFloat !== null && !this.used.has(a.id) && a.onsetContextSec >= w0 && a.onsetContextSec < w1);
     const scored = candidates
       .map((a) => {
         const pj = pitchJudgment(a, ev.pitchMidi, policy);
-        const rank = pj.state === 'correct' ? 0 : a.pitchMidiFloat !== null ? 1 : 2;
+        const rank = pj.state === 'correct' ? 0 : 1;
         return { a, pj, rank, dt: Math.abs(a.onsetContextSec - expected) };
       })
       .sort((x, y) => x.rank - y.rank || x.dt - y.dt || (x.a.id < y.a.id ? -1 : 1));
@@ -260,6 +262,7 @@ export class WaitTargetJudge {
   addAttack(a: AttackObservation): { outcome: 'accepted' | 'wrong' | 'unclear' | 'ignored'; judgment: Judgment | null; cents: number | null } {
     const t = this.target;
     if (!t || a.onsetContextSec < this.minOnset) return { outcome: 'ignored', judgment: null, cents: null };
+    if (a.pitchMidiFloat === null && !a.reasonCodes.includes('clipping')) return { outcome: 'ignored', judgment: null, cents: null };
     const pj = pitchJudgment(a, t.event.pitchMidi, this.policy);
     if (pj.state === 'uncertain') return { outcome: 'unclear', judgment: null, cents: pj.cents };
     this.tries++;
