@@ -46,7 +46,7 @@ export function Diagnostics() {
   useEffect(() => {
     return engine.on('attack', (a) => {
       if (a.simulated) return;
-      const onsetPerf = engine.contextToPerformanceMs(a.onsetContextSec);
+      const onsetPerf = engine.inputContextToPerformanceMs(a.onsetContextSec);
       const latency = onsetPerf === null ? null : Math.round(a.producedAtPerformanceMs - onsetPerf);
       if (latency !== null && latency > 0 && latency < 2000) latencies.current.push(latency);
       const nearest = a.pitchMidiFloat === null ? null : Math.round(a.pitchMidiFloat);
@@ -145,7 +145,7 @@ export function Diagnostics() {
               ? 'Pluck a few single notes to measure how quickly a note is reported.'
               : `Onset → result: median ${pct(lat, 0.5)} ms, 95th percentile ${pct(lat, 0.95)} ms over ${lat.length} notes.`}
           </p>
-          <p className="small muted">Approximate: includes audio input buffering, analysis (about 140 ms of sound is needed for a stable pitch) and message passing, measured against the output clock. The target is ≤200 ms (AC-11); low notes may be slower.</p>
+          <p className="small muted">Approximate: includes audio input buffering, analysis (about 140 ms of sound is needed for a stable pitch) and message passing, mapped from the input sample clock. The target is ≤200 ms (AC-11); low notes may be slower.</p>
           <h3>Devices</h3>
           <ul className="small">
             <li>Sample rate: {ctx?.sampleRate ?? '—'} Hz; output latency {ctx ? Math.round(((ctx.outputLatency || 0) + (ctx.baseLatency || 0)) * 1000) : '—'} ms (browser estimate)</li>

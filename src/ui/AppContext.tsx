@@ -169,7 +169,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deltaIO = useMemo(() => {
     void trackTick;
     const cal = settings.calibration;
-    const valid = calibrationValid(cal, { deviceId: engine.track?.deviceId ?? settings.deviceId, sampleRate: engine.sampleRate, outputRoute: settings.outputRoute });
+    const valid = calibrationValid(cal, { deviceId: engine.track?.deviceId ?? settings.deviceId, sampleRate: engine.sampleRate, outputRoute: settings.outputRoute, outputLatencyMs: engine.ctx ? Math.round(engine.estimatedDeltaIO() * 1000) : null });
     return valid && cal ? cal.offsetMs / 1000 : null;
   }, [settings.calibration, settings.deviceId, settings.outputRoute, trackTick]);
 

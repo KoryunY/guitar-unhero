@@ -42,6 +42,8 @@ export function pitchJudgment(
   const cents = (attack.pitchMidiFloat - targetMidi) * 100;
   if (Math.abs(cents) <= policy.pitchToleranceCents) return { state: 'correct', cents, reason: null };
   if (Math.abs(Math.abs(cents) - 1200) <= policy.octaveToleranceCents) return { state: 'uncertain', cents, reason: 'octave_ambiguous' };
+  // Twelfth / double octave: typical harmonic confusions, not trustworthy wrong notes.
+  if (Math.abs(Math.abs(cents) - 1902) <= policy.octaveToleranceCents || Math.abs(Math.abs(cents) - 2400) <= policy.octaveToleranceCents) return { state: 'uncertain', cents, reason: 'harmonic_ambiguous' };
   return { state: 'incorrect', cents, reason: 'wrong_pitch' };
 }
 
@@ -158,7 +160,7 @@ export class FixedTempoMatcher {
     if (!best) {
       // Something was heard but with no usable pitch (unclear pluck, two strings, a knock):
       // neither credit nor a miss.
-      const unclear = this.attacks.some((a) => a.pitchMidiFloat === null && !this.used.has(a.id) && a.onsetContextSec >= w0 && a.onsetContextSec < w1);
+      const unclear = this.attacks.some((a) => a.pitchMidiFloat === null && !a.reasonCodes.includes('probable_click_leakage') && !this.used.has(a.id) && a.onsetContextSec >= w0 && a.onsetContextSec < w1);
       if (unclear) {
         return {
           ...base,
@@ -282,13 +284,16 @@ export class WaitTargetJudge {
     const pj = pitchJudgment(a, t.event.pitchMidi, this.policy);
     if (pj.state === 'uncertain') return { outcome: 'unclear', judgment: null, cents: pj.cents };
     this.tries++;
-    if (!this.firstAttempt) this.firstAttempt = { state: pj.state, cents: pj.cents, obs: a, reason: pj.reason };
+    // A spectral-only onset (finger lift, pull-off, a neighbour stopping) is weak evidence:
+    // it can give feedback but never becomes the recorded "first attempt" as a wrong note.
+    const weakWrong = pj.state !== 'correct' && a.onsetKind === 'flux';
+    if (!this.firstAttempt && !weakWrong) this.firstAttempt = { state: pj.state, cents: pj.cents, obs: a, reason: pj.reason };
     if (pj.state !== 'correct') {
       this.minOnset = a.onsetContextSec + 1e-6;
       return { outcome: 'wrong', judgment: null, cents: pj.cents };
     }
     this.lastAcceptedOnset = a.onsetContextSec;
-    const first = this.firstAttempt;
+    const first = this.firstAttempt ?? { state: pj.state, cents: pj.cents, obs: a, reason: pj.reason };
     const reasons = ['rhythm_disabled', 'wait_mode'];
     if (first.state !== 'correct') reasons.push('recovered_after_retry', first.reason ?? 'wrong_pitch');
     if (a.simulated) reasons.push('simulated_input');

@@ -167,13 +167,22 @@ export class TunerTracker {
     this.candidateSince = null;
   }
 
+  private lockedNote: string | null = null;
+
   private lockLogic(t: number, cents: number, stable: boolean, base: Partial<TunerReading>): TunerReading {
     const abs = Math.abs(cents);
     if (this.locked) {
-      if (abs > this.opts.unlockCents) this.locked = false;
+      // Re-check every frame: a wobbling reading or a different note ends the lock.
+      if (abs > this.opts.unlockCents || !stable || (base.noteName ?? null) !== this.lockedNote) {
+        this.locked = false;
+        this.candidateSince = null;
+      }
     } else if (abs <= this.opts.lockCents && stable) {
       if (this.candidateSince === null) this.candidateSince = t;
-      if (t - this.candidateSince >= this.opts.lockHoldSec) this.locked = true;
+      if (t - this.candidateSince >= this.opts.lockHoldSec) {
+        this.locked = true;
+        this.lockedNote = base.noteName ?? null;
+      }
     } else {
       this.candidateSince = null;
     }

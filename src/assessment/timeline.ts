@@ -41,6 +41,11 @@ export class SignalTimeline {
     for (const b of this.blocks) if (b.reason === reason && b.end === Infinity) b.end = end;
   }
 
+  /** Shorten blocks of `reason` that started at `start` (e.g. a demo stopped early). */
+  truncateBlocks(reason: string, start: number, end: number): void {
+    for (const b of this.blocks) if (b.reason === reason && Math.abs(b.start - start) < 1e-6 && b.end > end) b.end = end;
+  }
+
   clear(): void {
     this.items = [];
     this.blocks = [];

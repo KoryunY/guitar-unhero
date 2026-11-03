@@ -164,7 +164,8 @@ export class PracticeController {
 
   private matchContext() {
     return {
-      deltaIO: this.opts.deltaIO ?? 0,
+      // Uncalibrated: use the browser's own output-latency estimate (still labeled approximate).
+      deltaIO: this.opts.deltaIO ?? this.engine.estimatedDeltaIO(),
       calibrated: this.opts.deltaIO !== null,
       rhythmEnabled: this.transport.mode === 'fixed',
       simulated: this.opts.inputSource === 'simulation',
@@ -292,21 +293,33 @@ export class PracticeController {
   }
 
   private target(ev: NoteEvent, contextTime: number, loopIteration: number, key: string): TargetInstance {
-    const idx = this.transport.events.indexOf(ev);
-    const rate = this.transport.rate;
-    const prev = this.transport.events[idx - 1];
-    const next = this.transport.events[idx + 1];
-    const s = this.transport.eventSec(ev);
-    return {
-      key,
-      attemptId: this.transport.attemptId,
-      loopIteration,
-      event: ev,
-      contextTime,
-      gapBeforeSec: prev ? (s - this.transport.eventSec(prev)) / rate : Infinity,
-      gapAfterSec: next ? (this.transport.eventSec(next) - s) / rate : Infinity,
-    };
+    const t = this.transport;
+    const rate = t.rate;
+    // Neighbours as actually played: inside an A–B loop the last note is followed by the
+    // first note of the next pass, so windows must not overlap across the wrap.
+    const loop = t.loop;
+    const inLoop = loop ? t.events.filter((e) => e.startTick >= loop.aTick && e.startTick < loop.bTick) : t.events;
+    const idx = inLoop.indexOf(ev);
+    const s = t.eventSec(ev);
+    let gapBefore = Infinity;
+    let gapAfter = Infinity;
+    if (idx >= 0) {
+      const prev = inLoop[idx - 1];
+      const next = inLoop[idx + 1];
+      gapBefore = prev ? s - t.eventSec(prev) : Infinity;
+      gapAfter = next ? t.eventSec(next) - s : Infinity;
+      if (loop && inLoop.length) {
+        const a = t.tickToSec(loop.aTick);
+        const b = t.tickToSec(loop.bTick);
+        if (!next) gapAfter = b - s + (t.eventSec(inLoop[0]!) - a);
+        if (!prev) gapBefore = s - a + (b - t.eventSec(inLoop[inLoop.length - 1]!));
+      }
+    }
+    return { key, attemptId: t.attemptId, loopIteration, event: ev, contextTime, gapBeforeSec: gapBefore / rate, gapAfterSec: gapAfter / rate };
   }
+
+  /** Recent attacks while playing in wait mode, replayed when waiting begins (early-play grace). */
+  private recentAttacks: AttackObservation[] = [];
 
   private tick(): void {
     const now = this.engine.now;
@@ -328,6 +341,13 @@ export class PracticeController {
       const ev = this.transport.waitingTarget;
       const key = `${this.transport.attemptId}:w:${this.transport.loopIteration}:${ev.id}`;
       this.waitJudge.begin(this.target(ev, now, this.transport.loopIteration, key), now);
+      // A note played slightly before the transport reached the target still counts once.
+      const early = this.recentAttacks.filter((a) => a.onsetContextSec >= now - 0.35);
+      this.recentAttacks = [];
+      for (const a of early) {
+        if (!this.waitJudge.active) break;
+        this.handleWaitAttack(a);
+      }
       this.feedback =
         this.opts.inputSource === 'none'
           ? `Waiting: play ${midiName(ev.pitchMidi)} (string ${ev.string}, ${ev.fret === 0 ? 'open' : `fret ${ev.fret}`}), then press Continue. Listening is off.`
@@ -350,7 +370,14 @@ export class PracticeController {
       this.simQueue = this.simQueue.filter((q) => q.at > now);
       due.forEach((q) => this.engine.simulateAttack(q.midi, q.onset));
     }
-    const js = this.matcher.finalize(now);
+    // Judge only what the analyser has had time to hear: if the worker lags, wait for it
+    // (unless it has stopped delivering entirely, e.g. device lost → not assessed).
+    let judgeAt = now;
+    if (this.opts.inputSource === 'microphone') {
+      const until = this.engine.analyzedUntil;
+      if (now - until < 1) judgeAt = Math.min(now, until + 0.25);
+    }
+    const js = this.matcher.finalize(judgeAt);
     if (js.length) {
       js.forEach((j) => this.addJudgment(j));
       const last = js[js.length - 1]!;
@@ -389,7 +416,16 @@ export class PracticeController {
       this.matcher.addAttack(a);
       return;
     }
-    if (this.transport.mode === 'wait' && this.transport.state === 'waitingForTarget') {
+    if (this.transport.mode === 'wait' && this.transport.state !== 'waitingForTarget') {
+      this.recentAttacks = [...this.recentAttacks.filter((x) => x.onsetContextSec > a.onsetContextSec - 2), a];
+      return;
+    }
+    if (this.transport.mode === 'wait' && this.transport.state === 'waitingForTarget') this.handleWaitAttack(a);
+  }
+
+  private handleWaitAttack(a: AttackObservation): void {
+    const sim = this.opts.inputSource === 'simulation';
+    {
       const r = this.waitJudge.addAttack(a);
       const ev = this.transport.waitingTarget!;
       if (r.outcome === 'accepted' && r.judgment) {

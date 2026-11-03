@@ -45,4 +45,6 @@ export interface AttackObservation {
   reasonCodes: string[];
   /** True only for clearly labeled simulation input. Never real assessment. */
   simulated: boolean;
+  /** How the onset was found: a loudness jump, or only new spectral content (weaker evidence). */
+  onsetKind?: 'energy' | 'flux';
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { engine } from '../../audio/engine';
+import { useApp } from '../AppContext';
 import type { PitchFrame } from '../../audio/observations';
 
 const MIN_DB = -80;
@@ -7,6 +8,7 @@ const pct = (db: number) => Math.max(0, Math.min(100, ((db - MIN_DB) / -MIN_DB) 
 
 /** Live input level with peak, gate and clipping indicators. */
 export function InputMeter({ compact = false }: { compact?: boolean }) {
+  const { settings } = useApp();
   const [frame, setFrame] = useState<PitchFrame | null>(engine.lastFrame);
   const [clipHold, setClipHold] = useState(false);
   const last = useRef(0);
@@ -32,7 +34,8 @@ export function InputMeter({ compact = false }: { compact?: boolean }) {
   const rms = frame?.rmsDb ?? MIN_DB;
   const peak = frame?.peakDb ?? MIN_DB;
   const level = Math.round(pct(rms));
-  const label = !frame ? 'No input signal yet' : clipHold ? 'Clipping — too loud' : rms < (frame.gateDb ?? -60) ? 'Quiet' : 'Signal';
+  const dead = frame?.reasonCodes.includes('no_input_signal');
+  const label = !frame ? 'No input signal yet' : dead ? 'No sound is reaching the app — is the mic muted or its level at zero?' : clipHold ? 'Clipping — too loud' : rms < (frame.gateDb ?? -60) ? 'Quiet' : 'Signal';
   return (
     <div>
       <div
@@ -48,10 +51,10 @@ export function InputMeter({ compact = false }: { compact?: boolean }) {
         {frame && <div className="gate" style={{ left: `${pct(frame.gateDb)}%` }} title="Detection threshold" />}
         <div className="peak" style={{ left: `${pct(peak)}%` }} />
       </div>
-      {!compact && (
-        <p className="small muted" aria-live="polite">
+      {(!compact || dead) && (
+        <p className="t-small muted" aria-live="polite" style={{ marginTop: 6 }}>
           {label}
-          {frame && ` · level ${Math.round(rms)} dBFS · background ${frame.noiseFloorDb === null ? '—' : Math.round(frame.noiseFloorDb)} dBFS`}
+          {frame && settings.advanced && ` · level ${Math.round(rms)} dBFS · background ${frame.noiseFloorDb === null ? '—' : Math.round(frame.noiseFloorDb)} dBFS`}
           {clipHold && ' · Lower the input gain or move the mic back.'}
         </p>
       )}

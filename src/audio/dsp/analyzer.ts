@@ -46,6 +46,11 @@ const PREV_PITCH_SEC = 0.15;
 const RINGING_MEMORY_SEC = 2.5;
 const MAX_CANCEL = 2;
 const SAME_PITCH_MIN_RISE_DB = 3;
+/** Below this level for DEAD_INPUT_SEC the input is treated as absent (muted/zero gain). */
+const DEAD_INPUT_DB = -100;
+const DEAD_INPUT_SEC = 0.5;
+/** A "new" attack at a still-ringing pitch needs this much sustained level rise. */
+const RINGING_REPLUCK_MIN_RISE_DB = 1.5;
 /** Flux-only onsets are not accepted this soon after another onset (spectrum still settling). */
 const FLUX_REFRACTORY_SEC = 0.15;
 /** The fundamental must also stand this far above the median spectral floor. */
@@ -124,7 +129,9 @@ export class StreamAnalyzer {
     this.ring = new Float32Array(this.cfg.bufferSize);
     this.sepBuf = new Float32Array(this.cfg.bufferSize);
     this.sepBuf2 = new Float32Array(this.cfg.bufferSize);
-    this.sepYin = new Yin({ sampleRate: this.cfg.sampleRate, bufferSize: this.cfg.bufferSize - 1024, minHz: this.cfg.minHz, maxHz: this.cfg.maxHz });
+    // Strict threshold for separated estimates: comb filtering weakens fundamentals and a
+    // loose threshold invites sub-octave answers.
+    this.sepYin = new Yin({ sampleRate: this.cfg.sampleRate, bufferSize: this.cfg.bufferSize - 1024, minHz: this.cfg.minHz, maxHz: this.cfg.maxHz, fallbackThreshold: null });
     this.fundFft = new FFT(this.cfg.bufferSize);
     this.fundRe = new Float64Array(this.cfg.bufferSize);
     this.fundIm = new Float64Array(this.cfg.bufferSize);
@@ -251,7 +258,10 @@ export class StreamAnalyzer {
     const n = blocks.length;
     const searchFrom = Math.max(0, n - winBlocks - 2);
     const before = blocks.slice(Math.max(0, searchFrom - winBlocks * 2), searchFrom);
-    const ref = before.length ? Math.max(...before.map((b) => b.e)) : 0;
+    // 75th percentile, not the max: a short click just before a pluck must not
+    // become the reference that delays (or steals) the pluck's onset time.
+    const sortedE = before.map((b) => b.e).sort((x, y) => x - y);
+    const ref = sortedE.length ? sortedE[Math.floor(sortedE.length * 0.75)]! : 0;
     const thresh = Math.max(ref * 2, 1e-10); // +3 dB over the previous peak block
     for (let i = searchFrom; i < n; i++) if (blocks[i]!.e > thresh) return blocks[i]!.frame;
     return blocks[Math.max(0, n - Math.ceil(winBlocks / 2))]!.frame;
@@ -295,6 +305,16 @@ export class StreamAnalyzer {
     return 10 * Math.log10((fund + 1e-30) / max);
   }
   private subCounter = 0;
+  private deadHops = 0;
+  /** Recent per-hop power for sustained-rise checks (≈1 s). */
+  private readonly hopPower: { frame: number; p: number }[] = [];
+
+  /** Mean power (dB) of hops whose end frame lies in [from, to). */
+  private meanPowerDb(from: number, to: number): number | null {
+    let sum = 0, n = 0;
+    for (const h of this.hopPower) if (h.frame >= from && h.frame < to) { sum += h.p; n++; }
+    return n ? 10 * Math.log10(sum / n + 1e-20) : null;
+  }
   private readonly fluxFft = new FFT(FLUX_N);
   private readonly fluxRe = new Float64Array(FLUX_N);
   private readonly fluxIm = new Float64Array(FLUX_N);
@@ -424,6 +444,8 @@ export class StreamAnalyzer {
     const rms = Math.sqrt(this.hopSumSq / n);
     const rmsDb = db(rms);
     const peakDb = db(this.hopPeak);
+    this.hopPower.push({ frame: endFrame, p: rms * rms });
+    if (this.hopPower.length > Math.ceil(sr / n)) this.hopPower.shift();
     const clipped = this.hopClipCount >= 3;
     this.hopSumSq = 0;
     this.hopPeak = 0;
@@ -454,11 +476,16 @@ export class StreamAnalyzer {
     else if (!periodic) this.noiseFloorDb = nf + Math.min(NOISE_RISE_DB_PER_HOP, rmsDb - nf);
     else this.noiseFloorDb = nf;
     const noisy = (this.noiseFloorDb ?? -96) > NOISY_FLOOR_DB;
-    const inputQuality: SignalQuality = clipped || noisy ? 'poor' : 'good';
+    // A muted track / zero input gain delivers (near-)digital silence: that is not
+    // "quiet listening", it is no listening at all.
+    this.deadHops = rmsDb < DEAD_INPUT_DB ? this.deadHops + 1 : 0;
+    const dead = this.deadHops * n >= DEAD_INPUT_SEC * sr;
+    const inputQuality: SignalQuality = dead ? 'unavailable' : clipped || noisy ? 'poor' : 'good';
     let pitchQuality: SignalQuality = 'unavailable';
     const missingFundamental = hz !== null && fundamentalDb < MIN_FUNDAMENTAL_SUPPORT_DB;
     if (hz !== null) pitchQuality = aperiodicity <= GOOD_APERIODICITY && !clipped && !missingFundamental ? 'good' : 'poor';
     const reasonCodes: string[] = [];
+    if (dead) reasonCodes.push('no_input_signal');
     if (clipped) reasonCodes.push('clipping');
     if (noisy) reasonCodes.push('noisy_input');
     if (missingFundamental) reasonCodes.push('missing_fundamental_possibly_several_notes');
@@ -498,7 +525,10 @@ export class StreamAnalyzer {
       const rawIsPrev = rawGood && p.prevMidis.some((m) => Math.abs(f.midiFloat! - m) * 100 <= 50);
       if (p.prevMidis.length > 0 && (!rawGood || rawIsPrev) && f.rmsDb > f.gateDb) {
         const sep = this.separatedPitch(p.prevMidis);
-        const sepDistinct = sep !== null && p.prevMidis.every((m) => Math.abs(sep.midi - m) * 100 > 50);
+        // The separated pitch must differ from every recently played pitch, not only the
+        // cancelled ones: a third, older string may still be ringing underneath.
+        const recent = [...p.prevMidis, ...this.recentAttacks.filter((r) => p.onsetFrame - r.frame < RINGING_MEMORY_SEC * this.cfg.sampleRate).map((r) => r.midi)];
+        const sepDistinct = sep !== null && recent.every((m) => Math.abs(sep.midi - m) * 100 > 50);
         if (!rawGood && sepDistinct) {
           // A new note over a ringing one: use the separated estimate.
           p.midis.push(sep!.midi);
@@ -541,6 +571,15 @@ export class StreamAnalyzer {
       Math.abs(a.pitchMidiFloat - last.midi) * 100 <= 50
     ) {
       return;
+    }
+    // Any onset (energy or flux) whose pitch equals a note that was already ringing must
+    // show a *sustained* level rise; a metronome click or knock over a ringing string
+    // has the ringing pitch but no new string energy, so it is not a new pluck.
+    if (a.pitchMidiFloat !== null && p.prevMidis.some((m) => Math.abs(m - a.pitchMidiFloat!) * 100 <= 50)) {
+      const sr = this.cfg.sampleRate;
+      const before = this.meanPowerDb(p.onsetFrame - 0.08 * sr, p.onsetFrame - 0.01 * sr);
+      const after = this.meanPowerDb(p.onsetFrame + 0.05 * sr, p.onsetFrame + 0.13 * sr);
+      if (before !== null && after !== null && after - before < RINGING_REPLUCK_MIN_RISE_DB) return;
     }
     if (a.pitchMidiFloat !== null && a.quality === 'good') {
       this.recentAttacks.push({ frame: p.onsetFrame, midi: a.pitchMidiFloat });
@@ -595,6 +634,7 @@ export class StreamAnalyzer {
       frames: p.midis.length,
       reasonCodes: reasons,
       simulated: false,
+      onsetKind: p.fluxOnlyRiseDb === Infinity ? 'energy' : 'flux',
     };
   }
 }

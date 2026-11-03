@@ -160,3 +160,46 @@ describe('tuner (AC-09, AC-10)', () => {
     expect(r.direction).toBeNull();
   });
 });
+
+import { renderClick } from '../../src/audio/dsp/pluckSynth';
+describe('review regressions (audio)', () => {
+  it('metronome clicks over a ringing note never become extra pitched attacks', () => {
+    for (const sr of [44100, 48000]) {
+      const ring = pluck(sr, midiHz(64), 5, 0.4, 4, 0.9995);
+      const fade = Math.round(0.03 * sr);
+      for (let i = 0; i < fade; i++) ring[ring.length - fade + i]! *= 1 - i / fade;
+      const clicks = [1.5, 2.5, 3.5, 4.5].map((t) => ({ atSec: t, sig: renderClick(sr, false) }));
+      const sig = mix(placeAt(sr, 6, [{ atSec: 0.3, sig: ring }, ...clicks]), whiteNoise(sr, 6, 0.0005));
+      const pitched = run(sig, sr).attacks.filter((a) => a.pitchMidiFloat !== null);
+      expect(pitched.map((a) => a.onsetContextSec.toFixed(2))).toEqual(['0.30']);
+    }
+  });
+
+  it('digital silence (muted input) is reported as no input, not as good listening', () => {
+    const { frames } = run(silence(48000, 1.5), 48000);
+    const late = frames.filter((f) => f.centerSec > 0.8);
+    expect(late.length).toBeGreaterThan(10);
+    expect(late.every((f) => f.inputQuality === 'unavailable' && f.reasonCodes.includes('no_input_signal'))).toBe(true);
+  });
+
+  it('a weak low-E fundamental (laptop-mic-like) still yields a pitch via the looser YIN pass', () => {
+    const sr = 48000;
+    const { attacks } = run(placeAt(sr, 2, [{ atSec: 0.3, sig: harmonicTone(sr, midiHz(40), 1.5, [0.02, 0.4, 0.3, 0.2, 0.1]) }]), sr);
+    const a = attacks.find((x) => x.pitchMidiFloat !== null);
+    expect(a && Math.round(a.pitchMidiFloat!)).toBe(40);
+  });
+});
+
+describe('tuner lock re-checks (review)', () => {
+  it('a new note or an unstable reading ends a lock', () => {
+    const sr = 48000;
+    const t = new TunerTracker({ mode: 'chromatic' });
+    const frames = run(concat(sine(sr, midiHz(40), 1.2, 0.3), sine(sr, midiHz(45) * 2 ** (3 / 1200), 1.2, 0.3)), sr).frames;
+    const readings = frames.map((f) => ({ t: f.centerSec, r: t.push(f) }));
+    expect(readings.some((x) => x.t < 1.2 && x.r.status === 'inTune')).toBe(true);
+    // Right after switching to A, the old lock must not carry over.
+    const justAfter = readings.filter((x) => x.t > 1.25 && x.t < 1.45);
+    expect(justAfter.every((x) => x.r.status !== 'inTune' || x.r.noteName === 'A2')).toBe(true);
+    expect(justAfter.filter((x) => x.r.status === 'inTune').length).toBeLessThan(justAfter.length);
+  });
+});

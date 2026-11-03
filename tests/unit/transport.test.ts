@@ -211,3 +211,11 @@ describe('latency calibration', () => {
     expect(calibrationValid(cal, { deviceId: 'd1', sampleRate: 48000, outputRoute: 'headphones' })).toBe(false);
   });
 });
+
+describe('calibration validity (review)', () => {
+  it('invalidates when the output latency changes by more than 20 ms (e.g. Bluetooth)', () => {
+    const cal = { method: 'loopback' as const, offsetMs: 80, spreadMs: 2, samples: 8, deviceId: 'd1', sampleRate: 48000, outputRoute: 'speakers' as const, createdAt: '', outputLatencyMs: 30 };
+    expect(calibrationValid(cal, { deviceId: 'd1', sampleRate: 48000, outputRoute: 'speakers', outputLatencyMs: 35 })).toBe(true);
+    expect(calibrationValid(cal, { deviceId: 'd1', sampleRate: 48000, outputRoute: 'speakers', outputLatencyMs: 190 })).toBe(false);
+  });
+});

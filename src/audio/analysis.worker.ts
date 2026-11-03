@@ -14,7 +14,7 @@ let rec: { chunks: Float32Array[]; remaining: number; startFrame: number | null 
 let sampleRate = 48000;
 const MAX_RECORD_SEC = 20;
 
-type InMsg = { type: 'init'; sampleRate: number; port: MessagePort } | { type: 'resetAttack' } | { type: 'stop' } | { type: 'record'; seconds: number } | { type: 'cancelRecord' };
+type InMsg = { type: 'init'; sampleRate: number; port: MessagePort; minHz?: number } | { type: 'config'; minHz: number } | { type: 'resetAttack' } | { type: 'stop' } | { type: 'record'; seconds: number } | { type: 'cancelRecord' };
 
 function finishRecording() {
   if (!rec) return;
@@ -32,7 +32,7 @@ function finishRecording() {
 self.onmessage = (e: MessageEvent<InMsg>) => {
   const d = e.data;
   if (d.type === 'init') {
-    analyzer = new StreamAnalyzer({ sampleRate: d.sampleRate });
+    analyzer = new StreamAnalyzer({ sampleRate: d.sampleRate, ...(d.minHz ? { minHz: d.minHz } : {}) });
     sampleRate = d.sampleRate;
     port?.close();
     port = d.port;
@@ -55,6 +55,8 @@ self.onmessage = (e: MessageEvent<InMsg>) => {
       }
       (self as unknown as DedicatedWorkerGlobalScope).postMessage({ type: 'results', frames, attacks });
     };
+  } else if (d.type === 'config') {
+    analyzer = new StreamAnalyzer({ sampleRate, minHz: d.minHz });
   } else if (d.type === 'record') {
     const secs = Math.max(1, Math.min(MAX_RECORD_SEC, d.seconds));
     rec = { chunks: [], remaining: Math.round(secs * sampleRate), startFrame: null };

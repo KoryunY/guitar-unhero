@@ -14,6 +14,8 @@ export interface CalibrationRecord {
   sampleRate: number | null;
   outputRoute: 'headphones' | 'speakers' | 'unknown';
   createdAt: string;
+  /** Browser-reported output + base latency at calibration time (detects a changed output device). */
+  outputLatencyMs?: number | null;
 }
 
 export interface LoopbackEstimate {
@@ -64,9 +66,11 @@ export function estimateLoopback(scheduled: number[], onsets: number[], opts: { 
 /** A calibration only applies to the same input device, sample rate and output route. */
 export function calibrationValid(
   cal: CalibrationRecord | null,
-  current: { deviceId: string | null; sampleRate: number | null; outputRoute: CalibrationRecord['outputRoute'] },
+  current: { deviceId: string | null; sampleRate: number | null; outputRoute: CalibrationRecord['outputRoute']; outputLatencyMs?: number | null },
 ): boolean {
   if (!cal) return false;
+  // Same route label but a different output device (e.g. laptop speakers → Bluetooth speaker).
+  if (cal.outputLatencyMs != null && current.outputLatencyMs != null && Math.abs(cal.outputLatencyMs - current.outputLatencyMs) > 20) return false;
   if (cal.method === 'manual') return cal.outputRoute === current.outputRoute;
   return cal.deviceId === current.deviceId && cal.sampleRate === current.sampleRate && cal.outputRoute === current.outputRoute;
 }

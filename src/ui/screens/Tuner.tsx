@@ -88,6 +88,11 @@ export function TunerScreen() {
   }, [reading, mode, str]);
 
   useEffect(() => () => refHandle.current?.stop(), []);
+  // Listen lower than usual so a very slack low-E string still shows a reading.
+  useEffect(() => {
+    engine.setMinHz(55);
+    return () => engine.setMinHz(78);
+  }, []);
 
   const playRef = async () => {
     refHandle.current?.stop();

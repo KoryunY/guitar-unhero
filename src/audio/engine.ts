@@ -49,6 +49,8 @@ export class AudioEngine {
   track: TrackInfo | null = null;
   readonly timeline = new SignalTimeline();
   lastFrame: PitchFrame | null = null;
+  /** Context time up to which microphone audio has been analysed (pipeline lag guard). */
+  analyzedUntil = 0;
   private master: GainNode | null = null;
   private buses: Partial<Record<Bus, GainNode>> = {};
   private busLevels: Record<Bus, number> = { guide: 0.8, metronome: 0.6, reference: 0.8, backing: 0.8 };
@@ -83,7 +85,14 @@ export class AudioEngine {
   // ---------------- context & output ----------------
   async ensureContext(): Promise<AudioContext> {
     if (!this.ctx) {
-      const ctx = new AudioContext({ latencyHint: 'interactive' });
+      // Prefer 48 kHz: analysis cost scales with the sample rate (96 kHz interfaces would
+      // double it). Fall back to the device default if the browser refuses.
+      let ctx: AudioContext;
+      try {
+        ctx = new AudioContext({ latencyHint: 'interactive', sampleRate: 48000 });
+      } catch {
+        ctx = new AudioContext({ latencyHint: 'interactive' });
+      }
       this.ctx = ctx;
       const limiter = ctx.createDynamicsCompressor();
       limiter.threshold.value = -6;
@@ -288,7 +297,7 @@ export class AudioEngine {
           handles.forEach((h) => h.stop());
           const n = ctx.currentTime;
           this.blocks = this.blocks.map((b) => (b.start === start ? { ...b, end: Math.min(b.end, n + OUTPUT_TAIL_SEC) } : b));
-          this.timeline.endBlocks('app_sound_playing', n + OUTPUT_TAIL_SEC);
+          this.timeline.truncateBlocks('app_sound_playing', start, n + OUTPUT_TAIL_SEC);
         },
       },
       start,
@@ -382,7 +391,7 @@ export class AudioEngine {
       this.worker = new Worker(new URL('./analysis.worker.ts', import.meta.url), { type: 'module' });
       const ch = new MessageChannel();
       this.worklet.port.postMessage({ type: 'port', port: ch.port1 }, [ch.port1]);
-      this.worker.postMessage({ type: 'init', sampleRate: ctx.sampleRate, port: ch.port2 }, [ch.port2]);
+      this.worker.postMessage({ type: 'init', sampleRate: ctx.sampleRate, port: ch.port2, minHz: this.minHz }, [ch.port2]);
       this.worker.onmessage = (e: MessageEvent<{ type: string; frames: PitchFrame[]; attacks: AttackObservation[]; pcm?: Float32Array; sampleRate?: number }>) => this.onResults(e.data);
       this.worker.onerror = () => this.setMic('error', { state: 'error', title: 'Audio analysis stopped', detail: 'The analysis worker failed. Reload the page and try again.' });
       this.setMic('on');
@@ -411,6 +420,26 @@ export class AudioEngine {
     this.recordResolve = null;
   }
 
+  /** Map an *input* (analysed-sample) context time to performance.now() ms. */
+  inputContextToPerformanceMs(c: number): number | null {
+    const ctx = this.ctx;
+    if (!ctx) return null;
+    return performance.now() - (ctx.currentTime - c) * 1000;
+  }
+
+  /** Estimated output→input delay when uncalibrated (output + base latency only). */
+  estimatedDeltaIO(): number {
+    const ctx = this.ctx;
+    return ctx ? (ctx.outputLatency || 0) + (ctx.baseLatency || 0) : 0;
+  }
+
+  /** Lowest pitch the analyser looks for (the tuner widens it to catch very slack low strings). */
+  setMinHz(hz: number): void {
+    this.minHz = hz;
+    this.worker?.postMessage({ type: 'config', minHz: hz });
+  }
+  private minHz = 78;
+
   /** Map a context time to performance.now() milliseconds (output-clock based; approximate). */
   contextToPerformanceMs(c: number): number | null {
     const ctx = this.ctx;
@@ -431,6 +460,7 @@ export class AudioEngine {
       return;
     }
     for (const f of d.frames) {
+      if (f.endSec > this.analyzedUntil) this.analyzedUntil = f.endSec;
       const blocked = this.isBlocked(f.centerSec);
       this.timeline.add(f.hopStartSec, f.endSec, f.inputQuality, f.inputQuality === 'good' ? null : f.reasonCodes[0] ?? 'poor_signal');
       this.lastFrame = f;
@@ -438,8 +468,11 @@ export class AudioEngine {
     }
     for (const a of d.attacks) {
       if (this.isBlocked(a.onsetContextSec)) continue; // never assess the app's own sound
-      // An unpitched onset within 300 ms after one of our clicks is treated as click leakage.
-      if (a.pitchMidiFloat === null && this.clickTimes.some((c) => a.onsetContextSec >= c - 0.02 && a.onsetContextSec <= c + 0.3)) continue;
+      // An unpitched onset just after one of our clicks is tagged (not dropped): the
+      // matcher ignores it, and loopback calibration still needs to see it.
+      if (a.pitchMidiFloat === null && this.clickTimes.some((c) => a.onsetContextSec >= c - 0.02 && a.onsetContextSec <= c + 0.3)) {
+        a.reasonCodes = [...a.reasonCodes, 'probable_click_leakage'];
+      }
       this.emit('attack', { ...a, producedAtPerformanceMs: performance.now() });
     }
   }

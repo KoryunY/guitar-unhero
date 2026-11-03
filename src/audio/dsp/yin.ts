@@ -8,6 +8,8 @@
  */
 import { FFT } from './fft';
 
+const FALLBACK_THRESHOLD = 0.2;
+
 export interface YinConfig {
   sampleRate: number;
   /** Total samples per analysis buffer (window + max lag). */
@@ -15,6 +17,8 @@ export interface YinConfig {
   minHz: number;
   maxHz: number;
   threshold: number;
+  /** Second-pass threshold for shallow dips (weak fundamentals); null disables it. */
+  fallbackThreshold: number | null;
 }
 
 export interface YinResult {
@@ -39,7 +43,7 @@ export class Yin {
   private readonly prefix: Float64Array;
 
   constructor(cfg: Partial<YinConfig> & { sampleRate: number }) {
-    this.cfg = { bufferSize: 4096, minHz: 60, maxHz: 1500, threshold: 0.12, ...cfg };
+    this.cfg = { bufferSize: 4096, minHz: 60, maxHz: 1500, threshold: 0.12, fallbackThreshold: FALLBACK_THRESHOLD, ...cfg };
     const { sampleRate, bufferSize, minHz, maxHz } = this.cfg;
     this.tauMin = Math.max(2, Math.floor(sampleRate / maxHz));
     this.tauMax = Math.min(Math.ceil(sampleRate / minHz), Math.floor(bufferSize / 2));
@@ -102,6 +106,18 @@ export class Yin {
         while (t + 1 < this.tauMax && cmnd[t + 1]! < cmnd[t]!) t++;
         tau = t;
         break;
+      }
+    }
+    if (tau < 0 && this.cfg.fallbackThreshold !== null) {
+      // Second pass at a looser threshold: weak fundamentals (laptop mics on low
+      // strings) give shallower dips. The analyzer still grades these frames by
+      // their aperiodicity and fundamental support.
+      for (let t = this.tauMin; t < this.tauMax; t++) {
+        if (cmnd[t]! < this.cfg.fallbackThreshold) {
+          while (t + 1 < this.tauMax && cmnd[t + 1]! < cmnd[t]!) t++;
+          tau = t;
+          break;
+        }
       }
     }
     if (tau < 0) {

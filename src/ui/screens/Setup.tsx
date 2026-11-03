@@ -70,6 +70,7 @@ export function Setup() {
       calibration: {
         method: 'loopback', offsetMs: est.offsetMs!, spreadMs: est.spreadMs, samples: est.matched,
         deviceId: engine.track?.deviceId ?? null, sampleRate: engine.sampleRate, outputRoute: settings.outputRoute, createdAt: new Date().toISOString(),
+        outputLatencyMs: Math.round(engine.estimatedDeltaIO() * 1000),
       },
     });
     setCal(`Saved: output→input offset ${est.offsetMs} ms (spread ${est.spreadMs} ms, ${est.matched}/8 clicks). Applies to this input, sample rate and output route only.`);

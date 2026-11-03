@@ -176,6 +176,14 @@
                 "createdAt": {
                   "type": "string",
                   "maxLength": 40
+                },
+                "outputLatencyMs": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 2000
                 }
               }
             }

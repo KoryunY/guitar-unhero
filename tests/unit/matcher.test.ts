@@ -242,3 +242,31 @@ describe('summary and suggestion', () => {
     expect(sug.text).toMatch(/^Simulation only/);
   });
 });
+
+describe('review regressions (assessment)', () => {
+  it('click-leakage unpitched sounds do not turn misses into "uncertain"', () => {
+    const m = new FixedTempoMatcher(ctx(), goodTimeline());
+    m.addTarget(target(ev('n1'), 10));
+    const click = attack(10, null, 'unavailable');
+    click.reasonCodes = ['probable_click_leakage'];
+    m.addAttack(click);
+    expect(m.finalize(30)[0]!.reasonCodes).toContain('no_attack_detected');
+  });
+  it('twelfth and double-octave readings are uncertain, not wrong', () => {
+    const m = new FixedTempoMatcher(ctx(), goodTimeline());
+    m.addTarget(target(ev('n1'), 10));
+    m.addTarget(target(ev('n4'), 11));
+    m.addAttack(attack(10, 64 + 19.02));
+    m.addAttack(attack(11, 64 + 24));
+    expect(m.finalize(30).map((j) => j.pitchState)).toEqual(['uncertain', 'uncertain']);
+  });
+  it('wait mode: a weak (flux-only) wrong onset never becomes the recorded first attempt', () => {
+    const w = new WaitTargetJudge();
+    w.begin(target(ev('n3'), 0), 20);
+    const weak = attack(20.2, 65);
+    weak.onsetKind = 'flux';
+    expect(w.addAttack(weak).outcome).toBe('wrong');
+    const r = w.addAttack(attack(20.6, 67));
+    expect(r.judgment).toMatchObject({ state: 'correct', pitchState: 'correct' });
+  });
+});
