@@ -49,6 +49,7 @@ export function PracticePlayer({
   map,
   backing,
   assessmentAllowed = true,
+  notCheckedText,
 }: {
   score: Score;
   onSummary?: (r: PracticeSummaryRecord) => void;
@@ -61,6 +62,8 @@ export function PracticePlayer({
   backing?: AudioBuffer | null;
   /** False for unreviewed transcription candidates: nothing is assessed. */
   assessmentAllowed?: boolean;
+  /** Why nothing is checked, when it is not because of review (e.g. chords-only practice). */
+  notCheckedText?: string;
 }) {
   const { settings, updateSettings, addSummary, deltaIO, mic, summaries } = useApp();
   const [, force] = useReducer((x: number) => x + 1, 0);
@@ -177,7 +180,7 @@ export function PracticePlayer({
     completed: 'Finished', deviceLost: 'Paused — input lost', error: 'Error',
   };
   const sourceText = !assessmentAllowed
-    ? 'Not checked until you review this version'
+    ? notCheckedText ?? 'Not checked until you review this version'
     : t.mode === 'listen'
       ? 'Just listening — not checked'
       : inputSource === 'simulation'
@@ -185,7 +188,7 @@ export function PracticePlayer({
         : inputSource === 'microphone'
           ? 'Checking your notes'
           : 'Mic off — not checked';
-  const timingText = t.mode === 'wait' ? 'Rhythm not checked while waiting' : t.mode === 'listen' ? '' : deltaIO === null ? 'Timing: rough guide' : 'Timing: calibrated';
+  const timingText = !assessmentAllowed ? '' : t.mode === 'wait' ? 'Rhythm not checked while waiting' : t.mode === 'listen' ? '' : deltaIO === null ? 'Timing: rough guide' : 'Timing: calibrated';
   const loopBar = t.loop && t.loop.aTick % 3840 === 0 && t.loop.bTick - t.loop.aTick === 3840 ? t.loop.aTick / 3840 : null;
 
   const transport = (

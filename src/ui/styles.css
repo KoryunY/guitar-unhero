@@ -499,7 +499,7 @@ table.events tr.next td { font-weight: 700; }
 /* Chord boxes and strum patterns */
 .chordbox { margin: 0; display: inline-flex; flex-direction: column; align-items: center; }
 .chordbox svg { width: 100%; height: auto; display: block; }
-.chordbox figcaption { font-family: var(--font-display); font-size: 24px; line-height: 26px; letter-spacing: 0.03em; }
+.chordbox figcaption { font-size: 20px; line-height: 26px; font-weight: 800; }
 .chord-strip { display: flex; gap: 12px; overflow-x: auto; padding: 6px 2px 10px; scroll-snap-type: x mandatory; }
 .chord-strip > * { scroll-snap-align: start; flex: 0 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m); padding: 8px 10px; }
 .chord-strip > .now { border: 2px solid var(--primary); box-shadow: var(--glow); }
@@ -512,10 +512,10 @@ table.events tr.next td { font-weight: 700; }
 .strum .slot span { color: var(--muted); font-size: 13px; }
 .strum .slot.on span { color: var(--on-primary); }
 .level-pills { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.level-pills button { min-height: 72px; border-radius: var(--radius-m); border: 2px solid var(--border); background: var(--surface); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px; color: var(--text); }
+.level-pills button:not(.x) { min-height: 72px; border-radius: var(--radius-m); border: 2px solid var(--border); background: var(--surface); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px; color: var(--text); }
 .level-pills button b { font-family: var(--font-display); font-size: 24px; line-height: 24px; font-weight: 400; letter-spacing: 0.04em; }
 .level-pills button small { font-size: 12px; line-height: 16px; color: var(--muted); font-weight: 600; text-align: center; }
-.level-pills button[aria-pressed='true'] { border-color: var(--primary); background: var(--primary-soft); box-shadow: var(--glow); }
+.level-pills button:not(.x)[aria-pressed='true'] { border-color: var(--primary); background: var(--primary-soft); box-shadow: var(--glow); }
 
 /* Headstock tuner */
 .tuner-layout { display: grid; gap: 16px; }

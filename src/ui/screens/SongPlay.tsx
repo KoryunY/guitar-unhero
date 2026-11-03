@@ -45,12 +45,14 @@ function timeMap(song: SongRecord): AnchorTimeMap | undefined {
 export function LevelPlay({ song, scores, buffer, onReview }: { song: SongRecord; scores: Map<string, Score>; buffer: AudioBuffer | null; onReview: (levels: Score[]) => Promise<void> }) {
   const { settings } = useApp();
   const available = LEVELS.filter((l) => song.levels?.[l] && scores.has(`${song.levels[l]!.arrangementId}@${song.levels[l]!.version}`));
-  const [level, setLevel] = useState<Level>(available.includes('easy') ? 'easy' : available[0] ?? 'full');
+  // Scores load after the song record: pick the default level once they are there.
+  const [chosen, setLevel] = useState<Level | null>(null);
+  const level: Level = chosen && available.includes(chosen) ? chosen : available.includes('easy') ? 'easy' : available[0] ?? 'full';
   const ref = song.levels?.[level];
   const score = ref ? scores.get(`${ref.arrangementId}@${ref.version}`) ?? null : null;
   const hasMelody = !!score?.events.length;
   const hasChords = !!score?.chords?.length;
-  const [part, setPart] = useState<'melody' | 'chords'>(hasChords && !hasMelody ? 'chords' : hasChords ? 'chords' : 'melody');
+  const [part, setPart] = useState<'melody' | 'chords'>('chords');
   const effectivePart = part === 'chords' && !hasChords ? 'melody' : part === 'melody' && !hasMelody ? 'chords' : part;
   const map = useMemo(() => timeMap(song), [song]);
   const joke = useJoke('song_imported', song.title.length);
@@ -121,6 +123,7 @@ export function LevelPlay({ song, scores, buffer, onReview }: { song: SongRecord
       )}
       {rightsIssue ? <Callout kind="bad">{rightsIssue}</Callout> : (
         <PracticePlayer key={`${score.arrangementId}@${score.version}:${effectivePart}:${section}`} score={view} map={map && buffer ? map : undefined} backing={map ? buffer : null} assessmentAllowed={!candidate && effectivePart === 'melody'}
+          notCheckedText={effectivePart === 'chords' ? 'Strum along — chords are not checked' : undefined}
           initial={section >= 0 && score.sections?.[section] ? { loop: { aTick: score.sections[section]!.tick, bTick: score.sections[section + 1]?.tick ?? score.durationTicks } } : undefined} />
       )}
       {joke && <Coach mood="rock" joke={joke}><p>Pick a level, start slow, and loop the hard bits.</p></Coach>}

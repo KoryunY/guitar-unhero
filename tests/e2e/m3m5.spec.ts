@@ -48,7 +48,9 @@ test('any song: a recording is worked out into easy / medium / full; nothing is 
   await expect(page.getByText('Beat found automatically')).toBeVisible();
   await page.getByTestId('level-full').click();
   await expect(page.getByTestId('practice-player')).toBeVisible();
-  await expect(page.getByTestId('assessment-source')).toHaveText(/Not checked/);
+  const part = page.getByTestId('part');
+  if (await part.count()) await part.getByRole('button', { name: 'Play the tune' }).click();
+  await expect(page.getByTestId('assessment-source')).toHaveText(/Not checked until you review/);
   await page.getByTestId('sounds-right').click();
   await expect(page.getByTestId('candidate-banner')).toHaveCount(0);
   await page.getByTestId('level-full').click();
