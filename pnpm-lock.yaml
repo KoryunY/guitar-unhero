@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@coderline/alphatab':
+        specifier: 1.8.4
+        version: 1.8.4
       '@mediapipe/tasks-vision':
         specifier: 1.1.1
         version: 1.1.1
@@ -62,6 +65,10 @@ packages:
     engines: {node: '>=22.12.0'}
     peerDependencies:
       playwright-core: '>= 1.0.0'
+
+  '@coderline/alphatab@1.8.4':
+    resolution: {integrity: sha512-VN5rfTZZWgA63Ny1aDKCp02k3Qm9CHhg4Q9AnK0kHm7G+fNDNZo36TeToPDFoJ6VpB9+AHcCrHwHFUP1tKqdsw==}
+    engines: {node: '>=6.0.0'}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -540,6 +547,8 @@ snapshots:
     dependencies:
       axe-core: 4.14.0
       playwright-core: 1.63.0
+
+  '@coderline/alphatab@1.8.4': {}
 
   '@jridgewell/resolve-uri@3.1.2': {}
 

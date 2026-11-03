@@ -23,6 +23,7 @@
     "prebuild": "node scripts/copy-mediapipe.mjs"
   },
   "dependencies": {
+    "@coderline/alphatab": "1.8.4",
     "@mediapipe/tasks-vision": "1.1.1",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
