@@ -13,7 +13,7 @@ export function ListenControl({ purpose }: { purpose: string }) {
   if (settings.inputMode === 'simulation') {
     return (
       <div className="callout sim" data-testid="listen-sim">
-        <strong>Simulation mode.</strong> No microphone is used; simulated results are labeled and never count as real assessment.
+        <div><strong>Simulation.</strong> Pretend playing — no microphone, and nothing here counts as your progress.</div>
       </div>
     );
   }
@@ -26,23 +26,23 @@ export function ListenControl({ purpose }: { purpose: string }) {
   if (mic === 'on') return null;
   const err = engine.micError;
   return (
-    <div className={`callout ${err ? 'bad' : ''}`} data-testid="listen-control">
+    <div className={`callout ${err ? 'bad' : ''}`} data-testid="listen-control" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
       {err ? (
-        <>
+        <div>
           <strong role="alert">{err.title}</strong>
-          <p className="small">{err.detail}</p>
-        </>
+          <div className="t-small">{err.detail}</div>
+        </div>
       ) : (
-        <p className="small" style={{ marginTop: 0 }}>
-          {settings.inputMode === 'none' ? 'Listening is off. ' : ''}The microphone lets me {purpose}. Audio is analyzed on this device only and never uploaded or saved.
-        </p>
+        <div className="t-small">
+          {settings.inputMode === 'none' ? 'Mic is off. ' : ''}Turn on the mic and the app can {purpose}. Sound stays on this device.
+        </div>
       )}
       <div className="row">
-        <button className="primary" onClick={start} disabled={busy || mic === 'requesting'}>
+        <button type="button" className="btn primary" style={{ minHeight: 48 }} onClick={start} disabled={busy || mic === 'requesting'}>
           {err ? 'Try again' : mic === 'requesting' ? 'Waiting for permission…' : 'Start listening'}
         </button>
-        <button onClick={() => navigate('setup')}>Open Setup</button>
-        <button onClick={() => updateSettings({ inputMode: 'simulation' })}>Use simulation instead</button>
+        {err && <button type="button" className="btn outline" onClick={() => navigate('settings', 'mic')}>Microphone settings</button>}
+        {err && <button type="button" className="btn text" onClick={() => updateSettings({ inputMode: 'none' })}>Continue without listening</button>}
       </div>
     </div>
   );

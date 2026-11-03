@@ -12,7 +12,8 @@ import { FixedTempoMatcher, WaitTargetJudge } from '../../assessment/matcher';
 import type { Judgment, TargetInstance } from '../../assessment/types';
 import { BEGINNER_POLICY } from '../../assessment/types';
 import { computeStats, suggestNext, type InputSource, type PhraseStats } from '../../assessment/summary';
-import { guidePolicy } from '../../assessment/guidePolicy';
+import { backingPolicy, guidePolicy } from '../../assessment/guidePolicy';
+import type { TimeMap } from '../../transport/timemap';
 import type { AudioEngine } from '../../audio/engine';
 import type { AttackObservation } from '../../audio/observations';
 import { midiName, pitchClassName } from '../../domain/tuning';
@@ -31,6 +32,10 @@ export interface PracticeOptions {
   simProfile: SimProfile;
   /** Recall: full cues, reduced (no fret/finger numbers) or none (play from memory). */
   cueLevel: CueLevel;
+  /** Play the song's backing recording (only at 100 % speed). */
+  backingOn?: boolean;
+  /** When false (e.g. an unreviewed transcription candidate), nothing is assessed. */
+  assessmentAllowed?: boolean;
 }
 
 export interface PhraseResult {
@@ -52,6 +57,7 @@ export class PracticeController {
   private attemptStartedAt = new Date();
   private summarized = false;
 
+  readonly backing: AudioBuffer | null;
   judgments: Judgment[] = [];
   /** Latest judgment per `${loopIteration}:${eventId}` for drawing. */
   readonly judgmentByNote = new Map<string, Judgment>();
@@ -65,10 +71,13 @@ export class PracticeController {
     private readonly engine: AudioEngine,
     opts: PracticeOptions,
     initial: { mode: PracticeMode; rate: number },
+    extra: { map?: TimeMap; backing?: AudioBuffer | null } = {},
   ) {
     this.score = score;
     this.opts = opts;
-    this.transport = new Transport(score, () => engine.now);
+    this.backing = extra.backing ?? null;
+    this.transport = new Transport(score, () => engine.now, extra.map);
+    this.transport.backingEnabled = !!this.backing && !!opts.backingOn;
     this.transport.mode = initial.mode;
     if (initial.rate !== 1) this.transport.rate = initial.rate;
     this.waitJudge.setSimulated(opts.inputSource === 'simulation');
@@ -126,7 +135,11 @@ export class PracticeController {
   }
 
   get assessing(): boolean {
-    return this.transport.mode !== 'listen' && this.opts.inputSource !== 'none';
+    return this.transport.mode !== 'listen' && this.opts.inputSource !== 'none' && this.opts.assessmentAllowed !== false;
+  }
+
+  get backingState() {
+    return backingPolicy({ backingOn: !!this.backing && !!this.opts.backingOn, route: this.opts.outputRoute, assessing: this.assessing });
   }
 
   get guide() {
@@ -143,6 +156,7 @@ export class PracticeController {
 
   setOptions(patch: Partial<PracticeOptions>): void {
     this.opts = { ...this.opts, ...patch };
+    this.transport.backingEnabled = !!this.backing && !!this.opts.backingOn;
     this.waitJudge.setSimulated(this.opts.inputSource === 'simulation');
     this.matcher.setContext(this.matchContext());
     this.notify();
@@ -204,7 +218,7 @@ export class PracticeController {
 
   seekBeats(delta: number): void {
     const beatTick = 960;
-    const cur = Math.round((this.transport.positionSec / this.transport.beatSec) * beatTick);
+    const cur = Math.round(this.transport.secToTick(this.transport.positionAt(this.engine.now)));
     const target = Math.max(0, Math.min(this.score.durationTicks - beatTick, Math.round(cur / beatTick) * beatTick + delta * beatTick));
     this.transport.seek(target);
   }
@@ -258,9 +272,17 @@ export class PracticeController {
   }
 
   private output(item: ScheduledItem) {
+    if (item.kind === 'backing') {
+      if (!this.backing || item.endContextTime === undefined) return null;
+      const bp = this.backingState;
+      if (!bp.audible) return null;
+      if (bp.blocksAssessment) this.engine.blockAssessment(item.contextTime, item.endContextTime + 0.35, 'backing_audible_on_speakers');
+      return this.engine.playBacking(this.backing, item.contextTime, item.sourceSec, item.endContextTime);
+    }
     if (item.kind === 'note') {
       if (!this.guide.guideAudible || !item.event) return null;
-      const dur = (this.transport.tickToSec(item.event.durationTicks) / this.transport.rate) + 0.6;
+      const ev = item.event;
+      const dur = (this.transport.tickToSec(ev.startTick + ev.durationTicks) - this.transport.tickToSec(ev.startTick)) / this.transport.rate + 0.6;
       const h = this.engine.playNote(item.event.pitchMidi, item.contextTime, 'guide', dur);
       // Guide audible while assessing (headphones): nothing to block. Listen mode: not assessed anyway.
       return h;

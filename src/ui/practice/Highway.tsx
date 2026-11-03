@@ -41,9 +41,9 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
       let pos = t.positionAt(c);
       if (reducedMotion) pos = Math.floor(pos / t.beatSec + 1e-6) * t.beatSec;
 
-      const colors = { lane: css('--lane'), alt: css('--lane-alt'), ink: css('--ink'), muted: css('--muted'), accent: css('--accent'), accentInk: css('--accent-ink'), good: css('--good'), bad: css('--bad'), unsure: css('--unsure'), na: css('--na'), line: css('--line') };
-      const labelW = 74;
-      const top = 26;
+      const colors = { lane: css('--surface-2'), alt: css('--surface-3'), ink: css('--text'), muted: css('--muted'), accent: css('--primary'), accentInk: css('--on-primary'), good: css('--correct'), bad: css('--incorrect'), unsure: css('--uncertain'), na: css('--na'), line: css('--border') };
+      const labelW = 46;
+      const top = 8;
       const laneH = (H - top - 8) / 6;
       const playL = leftHanded ? 0 : labelW;
       const playR = leftHanded ? W - labelW : W;
@@ -72,12 +72,7 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
         g.moveTo(x, top);
         g.lineTo(x, H - 8);
         g.stroke();
-        if (k % 4 === 0) {
-          g.fillStyle = colors.muted;
-          g.font = '11px system-ui';
-          g.textAlign = 'center';
-          g.fillText(`bar ${k / 4 + 1}`, x, top - 8);
-        }
+
       }
       // Loop region.
       if (t.loop) {
@@ -87,13 +82,13 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
         g.fillRect(Math.min(a, b), top, Math.abs(b - a), H - top - 8);
       }
       // Lane labels.
-      g.font = 'bold 13px system-ui';
+      g.font = `bold ${Math.round(Math.min(18, laneH * 0.42))}px system-ui`;
       for (let i = 0; i < 6; i++) {
         const s = (i + 1) as StringNumber;
         g.fillStyle = colors.ink;
         g.textAlign = leftHanded ? 'right' : 'left';
         const lx = leftHanded ? W - 6 : 6;
-        g.fillText(`${s}  ${STRING_LABELS[s].name}`, lx, top + i * laneH + laneH / 2 + 4);
+        g.fillText(`${s} ${STRING_LABELS[s].name.replace(/\d/, '')}`, lx, top + i * laneH + laneH / 2 + 6);
         g.strokeStyle = colors.muted;
         g.lineWidth = 1 + i * 0.4;
         g.beginPath();
@@ -112,7 +107,7 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
       // Notes.
       const waiting = t.state === 'waitingForTarget' ? t.waitingTarget : null;
       const iter = t.loopIteration;
-      const r = Math.min(laneH * 0.42, 18);
+      const r = Math.min(laneH * 0.44, 24);
       for (const ev of t.events) {
         const s = t.eventSec(ev);
         // From memory: upcoming notes are hidden; judged notes are shown after the fact.
@@ -140,31 +135,23 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
         g.fillStyle = colors.accentInk;
         g.font = `bold ${Math.round(r * 1.05)}px system-ui`;
         g.textAlign = 'center';
-        if (cueLevel === 'full') g.fillText(String(ev.fret), x, y + r * 0.38);
+
         // Finger number on approach, judgment glyph after.
-        g.font = '12px system-ui';
+        g.font = `bold ${Math.round(r * 0.8)}px system-ui`;
         g.fillStyle = colors.ink;
-        if (j) g.fillText(GLYPH[j.state], x, y - r - 3);
-        else if (cueLevel === 'full' && ev.finger && s - pos < 2.5 * t.rate && s >= pos) g.fillText(`finger ${ev.finger}`, x, y - r - 3);
+        const side = leftHanded ? -1 : 1;
+        if (j) g.fillText(GLYPH[j.state], x + side * (r + 12), y + r * 0.3);
       }
 
       // Count-in overlay.
       const beat = t.countInBeatAt(engine.now);
       if (beat !== null) {
         g.fillStyle = colors.ink;
-        g.font = 'bold 64px system-ui';
+        g.font = `bold ${Math.round(Math.min(96, laneH * 2.4))}px system-ui`;
         g.textAlign = 'center';
-        g.fillText(String(beat), (playL + playR) / 2, top + laneH * 3 + 22);
-      }
-      if (waiting) {
-        g.fillStyle = colors.ink;
-        g.font = 'bold 15px system-ui';
-        g.textAlign = 'center';
-        g.fillText(
-          cueLevel === 'none' ? 'Waiting: next note from memory' : cueLevel === 'reduced' ? `Waiting: string ${waiting.string}` : `Waiting: string ${waiting.string}, ${waiting.fret === 0 ? 'open' : `fret ${waiting.fret}`}`,
-          (playL + playR) / 2,
-          16,
-        );
+        g.globalAlpha = 0.85;
+        g.fillText(String(beat), hitX + (leftHanded ? -1 : 1) * Math.min(120, playW * 0.2), top + laneH * 3 + laneH * 0.8);
+        g.globalAlpha = 1;
       }
     };
     raf = requestAnimationFrame(draw);

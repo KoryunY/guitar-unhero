@@ -180,6 +180,12 @@
               }
             }
           ]
+        },
+        "advanced": {
+          "type": "boolean"
+        },
+        "cameraLab": {
+          "type": "boolean"
         }
       }
     },

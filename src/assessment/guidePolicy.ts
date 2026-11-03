@@ -24,3 +24,18 @@ export function guidePolicy(opts: { guideOn: boolean; route: OutputRoute; assess
         : 'Guide notes are muted while listening because the output route is unknown. If you wear headphones, choose “Headphones” in Setup.',
   };
 }
+
+/**
+ * A backing recording on speakers would reach the microphone (and may contain
+ * guitar). While assessing on speakers/unknown, it plays but its spans are not
+ * assessed; on headphones it is fine.
+ */
+export function backingPolicy(opts: { backingOn: boolean; route: OutputRoute; assessing: boolean }): { audible: boolean; blocksAssessment: boolean; notice: string | null } {
+  if (!opts.backingOn) return { audible: false, blocksAssessment: false, notice: null };
+  if (!opts.assessing || opts.route === 'headphones') return { audible: true, blocksAssessment: false, notice: null };
+  return {
+    audible: true,
+    blocksAssessment: true,
+    notice: 'The backing track is playing through speakers, so the mic would hear it too. Notes are not checked while it plays. Wear headphones (and tell the app) to get feedback with the backing.',
+  };
+}

@@ -4,39 +4,67 @@ import { LESSONS, attemptFeedback, findLesson, type Lesson, type LessonStep } fr
 import { findBundledScore } from '../../content/scores';
 import type { Evidence } from '../../storage/types';
 import { useApp } from '../AppContext';
-import { navigate } from '../App';
+import { navigate, PageHead, StatusChip } from '../App';
 import { FretDiagram } from '../components/FretDiagram';
 import { InputMeter } from '../components/InputMeter';
 import { ListenControl } from '../components/ListenControl';
 import { PracticePlayer } from '../practice/PracticePlayer';
 import { EarComparePanel, QuizPanel, SequencePanel, StrumAlongPanel, TapPulsePanel } from '../components/StepPanels';
+import { Icon } from '../icons';
+import { toast, TopBar } from '../kit';
+
+export const CHAPTERS: { title: string; ids: string[] }[] = [
+  { title: 'Getting started', ids: ['lesson.meet-guitar.v1', 'lesson.high-e.first-sound.v1', 'lesson.pulse.v1'] },
+  { title: 'Your first piece', ids: ['lesson.high-e.first-frets.v1', 'lesson.b-string.first-frets.v1', 'lesson.crossing.v1', 'lesson.long-notes.v1', 'lesson.first-piece.v1', 'lesson.chunks-memory.v1'] },
+  { title: 'Chords', ids: ['lesson.open-strings.v1', 'lesson.em-chord.v1', 'lesson.am-chord.v1'] },
+  { title: 'Ears and memory', ids: ['lesson.listen-remember.v1'] },
+];
+
+function evidenceBadge(e: Evidence | null | undefined) {
+  if (e === 'sensor') return <span className="badge good"><Icon name="mic" size={12} /> Heard</span>;
+  if (e === 'simulated') return <span className="badge sim">Simulation</span>;
+  if (e === 'self_reported') return <span className="badge">Self-check</span>;
+  return null;
+}
 
 export function Learn({ lessonId }: { lessonId: string | null }) {
   const { lessons } = useApp();
   const lesson = lessonId ? findLesson(lessonId) : undefined;
   if (lesson) return <LessonRunner key={lesson.lessonId} lesson={lesson} />;
+  const current = LESSONS.find((l) => !lessons[l.lessonId]?.completedAt);
+  const listed = new Set(CHAPTERS.flatMap((c) => c.ids));
+  const chapters = [...CHAPTERS, { title: 'More', ids: LESSONS.map((l) => l.lessonId).filter((id) => !listed.has(id)) }].filter((c) => c.ids.some((id) => findLesson(id)));
+  let n = 0;
   return (
     <section aria-labelledby="learn-h">
-      <h1 id="learn-h">Lessons</h1>
-      <p className="muted">Draft lessons written for this prototype. They have not yet been reviewed by a guitar teacher.</p>
-      {LESSONS.map((l) => {
-        const p = lessons[l.lessonId];
-        return (
-          <div className="panel" key={l.lessonId}>
-            <h2 style={{ marginTop: 0 }}>{l.title}</h2>
-            <p>{l.learningObjective}</p>
-            <p className="small muted">
-              About {l.estimatedMinutes} min ·{' '}
-              {p?.completedAt
-                ? `Completed (${p.completionEvidence === 'sensor' ? 'heard by the microphone' : p.completionEvidence === 'simulated' ? 'simulation only' : 'self-check'})`
-                : p
-                  ? `${p.completedSteps.length} of ${l.steps.length} steps done`
-                  : 'Not started'}
-            </p>
-            <button className={p?.completedAt ? '' : 'primary'} onClick={() => navigate('learn', l.lessonId)}>{p ? (p.completedAt ? 'Repeat' : 'Continue') : 'Start'}</button>
+      <PageHead title="Learn" />
+      {chapters.map((c) => (
+        <div key={c.title}>
+          <div className="section-title">{c.title}</div>
+          <div className="path">
+            {c.ids.map((id) => findLesson(id)).filter((l): l is Lesson => !!l).map((l) => {
+              n++;
+              const p = lessons[l.lessonId];
+              const done = !!p?.completedAt;
+              const isCurrent = current?.lessonId === l.lessonId;
+              return (
+                <a key={l.lessonId} href={`#/learn/${l.lessonId}`} className={`pathnode${done ? ' done' : ''}${isCurrent ? ' current' : ''}`} aria-current={isCurrent ? 'step' : undefined}>
+                  <span className="dot">{done ? <Icon name="check" /> : n}</span>
+                  <span className="spacer">
+                    <span className="lr-title" style={{ display: 'block', fontWeight: 700 }}>{l.title}</span>
+                    <span className="t-small muted" style={{ display: 'block' }}>
+                      {done ? (p?.skillState === 'retained' ? 'Remembered on a later day' : 'Done') : p ? `${p.completedSteps.length} of ${l.steps.length} steps` : `About ${l.estimatedMinutes.replace(/ \(.*\)/, '')} min`}
+                    </span>
+                  </span>
+                  {done && evidenceBadge(p?.completionEvidence)}
+                  {p?.skillState === 'retained' && <span className="badge good">Retained</span>}
+                </a>
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+      ))}
+      <p className="t-caption" style={{ marginTop: 24 }}>Lessons are drafts written for this app and have not yet been reviewed by a guitar teacher. If anything hurts, stop and rest.</p>
     </section>
   );
 }
@@ -53,28 +81,30 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
 
   useEffect(() => {
     headingRef.current?.focus();
+    window.scrollTo?.(0, 0);
   }, [idx]);
 
   const finishStep = (evidence: Evidence) => {
+    const already = done.has(step.id);
     recordStep(lesson.lessonId, step.id, evidence);
+    if (!already) toast(evidence === 'simulated' ? 'Step saved (simulation only)' : evidence === 'self_reported' ? 'Step saved (self-check)' : 'Step saved');
   };
   const next = () => setIdx((i) => Math.min(lesson.steps.length - 1, i + 1));
+  const stepEvidence = progress?.completedSteps.find((s) => s.stepId === step.id)?.evidence;
 
   return (
-    <section aria-labelledby="lesson-h">
-      <p className="small"><a href="#/learn">← All lessons</a></p>
-      <h1 id="lesson-h">{lesson.title}</h1>
-      <nav className="steps-nav" aria-label="Lesson steps">
-        {lesson.steps.map((s, i) => (
-          <button key={s.id} className={`dot ${i === idx ? 'current' : done.has(s.id) ? 'done' : ''}`} onClick={() => setIdx(i)} aria-current={i === idx ? 'step' : undefined}>
-            {i + 1}. {s.title}{done.has(s.id) ? ' ✓' : ''}
-          </button>
-        ))}
-      </nav>
-      <div className="panel">
-        <h2 ref={headingRef} tabIndex={-1} style={{ marginTop: 0 }}>Step {idx + 1}: {step.title}</h2>
-        {step.body.map((p, i) => <p key={i}>{p}</p>)}
-        {step.diagram && step.kind !== 'strum-along' && <FretDiagram diagram={step.diagram} leftHanded={settings.handedness === 'left'} />}
+    <section aria-labelledby="lesson-h" className="lesson-body">
+      <TopBar title={lesson.title} back={() => navigate('learn')}>
+        <StatusChip />
+      </TopBar>
+      <div className="steps-bar" role="img" aria-label={`Step ${idx + 1} of ${lesson.steps.length}`} style={{ marginBottom: 16 }}>
+        {lesson.steps.map((s, i) => <i key={s.id} className={i === idx ? 'current' : done.has(s.id) ? 'done' : ''} />)}
+      </div>
+      <p className="t-caption" style={{ marginBottom: 4 }}>Step {idx + 1} of {lesson.steps.length}</p>
+      <h2 id="lesson-h" className="t-title" ref={headingRef} tabIndex={-1} style={{ marginBottom: 12 }}>{step.title}</h2>
+      <div className="stack">
+        <div>{step.body.map((p, i) => <p key={i}>{p}</p>)}</div>
+        {step.diagram && step.kind !== 'strum-along' && <div className="card tight"><FretDiagram diagram={step.diagram} leftHanded={settings.handedness === 'left'} /></div>}
         {step.phases && (
           <ol className="phases" aria-label="Movement phases">
             {step.phases.map((ph) => <li key={ph.label}><strong>{ph.label}</strong>{ph.text}</li>)}
@@ -82,12 +112,10 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
         )}
         {step.demoMidis && <DemoButton midis={step.demoMidis} label={step.demoLabel ?? 'Hear it'} />}
 
-        {step.kind === 'attempt' && step.attempt && (
-          <AttemptPanel step={step} onComplete={(ev) => { finishStep(ev); }} evidenceSource={evidenceSource} />
-        )}
+        {step.kind === 'attempt' && step.attempt && <AttemptPanel step={step} onComplete={finishStep} evidenceSource={evidenceSource} />}
         {step.kind === 'stop-ringing' && <StopRingingPanel step={step} onComplete={finishStep} evidenceSource={evidenceSource} />}
         {step.kind === 'practice' && step.scoreRef && (
-          <div style={{ marginTop: 12 }}>
+          <div>
             <PracticePlayer
               key={`${lesson.lessonId}:${step.id}`}
               score={findBundledScore(step.scoreRef)!}
@@ -97,7 +125,7 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
                 if (r.stats.pitch.accuracy !== null && r.stats.pitch.accuracy >= 0.6) finishStep(r.simulated ? 'simulated' : 'sensor');
               }}
             />
-            {step.selfCheckLabel && <button onClick={() => finishStep('self_reported')} style={{ marginTop: 8 }}>{step.selfCheckLabel}</button>}
+            {step.selfCheckLabel && <button type="button" className="btn outline block" onClick={() => finishStep('self_reported')} style={{ marginTop: 12 }}>{step.selfCheckLabel}</button>}
           </div>
         )}
         {step.kind === 'quiz' && step.quiz && <QuizPanel key={step.id} quiz={step.quiz} onComplete={() => finishStep('sensor')} />}
@@ -106,32 +134,39 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
         {step.kind === 'strum-along' && step.strum && <StrumAlongPanel key={step.id} strum={step.strum} leftHanded={settings.handedness === 'left'} />}
         {step.kind === 'ear-compare' && step.ear && <EarComparePanel key={step.id} ear={step.ear} onComplete={() => finishStep('sensor')} />}
         {step.selfCheckLabel && (step.kind === 'tap-pulse' || step.kind === 'strum-along') && (
-          <button onClick={() => finishStep('self_reported')} style={{ marginTop: 8 }}>{step.selfCheckLabel}</button>
+          <button type="button" className="btn outline block" onClick={() => finishStep('self_reported')}>{step.selfCheckLabel}</button>
         )}
         {step.kind === 'choice' && (
-          <div className="row">
+          <div className="stack">
             {lesson.nextLessonId && (
-              <button className="primary" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('learn', lesson.nextLessonId!); }}>
+              <button type="button" className="btn primary block" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('learn', lesson.nextLessonId!); }}>
                 Next: {findLesson(lesson.nextLessonId)?.title ?? 'next lesson'}
               </button>
             )}
             {!lesson.nextLessonId && (
-              <button className="primary" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('practice', 'piece.morning-steps'); }}>Practice “Morning Steps”</button>
+              <button type="button" className="btn primary block" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('practice', 'piece.morning-steps'); }}>Practise “Morning Steps”</button>
             )}
-            <button onClick={() => setIdx(0)}>Repeat this lesson</button>
-            <button onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('home'); }}>Finish for today</button>
+            <button type="button" className="btn tonal block" onClick={() => setIdx(0)}>Repeat this lesson</button>
+            <button type="button" className="btn outline block" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('today'); }}>Finish for today</button>
           </div>
         )}
-        {done.has(step.id) && step.kind !== 'choice' && <p className="callout good small">Step saved{progress?.completedSteps.find((s) => s.stepId === step.id)?.evidence === 'simulated' ? ' (simulation only — not real assessment)' : progress?.completedSteps.find((s) => s.stepId === step.id)?.evidence === 'self_reported' ? ' (self-check)' : ''}.</p>}
+        {done.has(step.id) && step.kind !== 'choice' && (
+          <div className="callout good" data-testid="step-saved">
+            <Icon name="check" size={20} />
+            <div>Step saved{stepEvidence === 'simulated' ? ' (simulation only — not real assessment)' : stepEvidence === 'self_reported' ? ' (self-check)' : ''}.</div>
+          </div>
+        )}
       </div>
-      <div className="row">
-        <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0}>Back</button>
-        {step.kind === 'info' || step.kind === 'demo' ? (
-          <button className="primary" onClick={() => { finishStep('self_reported'); next(); }}>Got it — next</button>
-        ) : step.kind !== 'choice' ? (
-          <button className={done.has(step.id) ? 'primary' : ''} onClick={next}>{done.has(step.id) ? 'Next step' : 'Skip for now'}</button>
-        ) : null}
-      </div>
+      {step.kind !== 'choice' && (
+        <div className="actionbar">
+          <button type="button" className="btn outline" onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0}>Back</button>
+          {step.kind === 'info' || step.kind === 'demo' ? (
+            <button type="button" className="btn primary" onClick={() => { finishStep('self_reported'); next(); }}>Got it — next</button>
+          ) : (
+            <button type="button" className={`btn ${done.has(step.id) ? 'primary' : 'tonal'}`} onClick={next}>{done.has(step.id) ? 'Next step' : 'Skip for now'}</button>
+          )}
+        </div>
+      )}
     </section>
   );
 
@@ -151,16 +186,15 @@ function DemoButton({ midis, label }: { midis: number[]; label: string }) {
   const h = useRef<Handle | null>(null);
   useEffect(() => () => h.current?.stop(), []);
   return (
-    <div className="row" style={{ margin: '8px 0' }}>
-      <button onClick={async () => {
+    <div className="row">
+      <button type="button" className="btn tonal" data-testid="demo" onClick={async () => {
         h.current?.stop();
         const d = await engine.demonstrate(midis, 0.9, 'reference');
         h.current = d.handle;
         setPlaying(true);
         window.setTimeout(() => setPlaying(false), (d.end - d.start) * 1000);
-      }} disabled={playing}>{playing ? 'Playing… (listening paused)' : `▶ ${label}`}</button>
-      {playing && <button onClick={() => { h.current?.stop(); setPlaying(false); }}>Stop</button>}
-      <span className="small muted">Synthesized demonstration. Listening is paused while it plays.</span>
+      }} disabled={playing}><Icon name="volume" size={20} />{playing ? 'Playing… (mic paused)' : label}</button>
+      {playing && <button type="button" className="btn outline" onClick={() => { h.current?.stop(); setPlaying(false); }}>Stop</button>}
     </div>
   );
 }
@@ -218,20 +252,18 @@ function AttemptPanel({ step, onComplete, evidenceSource }: { step: LessonStep; 
   }, [listening, sim, spec, evidenceSource]);
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div className="stack">
       {!sim && <ListenControl purpose="hear your note and tell you what I heard" />}
       {mic === 'on' && <InputMeter compact />}
-      <p className="small">Target: <strong>{spec.fret === 0 ? `open string ${spec.string}` : `string ${spec.string}, fret ${spec.fret}`}</strong>. Heard correctly: {Math.min(count, spec.required)} of {spec.required}.</p>
-      <p role="status" aria-live="polite" className="feedback" data-testid="lesson-feedback">{msg ?? (listening ? 'Listening… take your time.' : 'Listening is off — use the self-check when you have played it.')}</p>
-      <div className="row">
-        {sim && (
-          <>
-            <button onClick={() => engine.simulateAttack(spec.targetMidi)} data-testid="sim-correct">Simulate: right note</button>
-            <button onClick={() => engine.simulateAttack(spec.targetMidi + (spec.fret > 0 ? -spec.fret : 1))}>Simulate: wrong note</button>
-          </>
-        )}
-        {step.selfCheckLabel && <button onClick={() => onComplete('self_reported')}>{step.selfCheckLabel}</button>}
-      </div>
+      <p className="t-small">Target: <strong>{spec.fret === 0 ? `open string ${spec.string}` : `string ${spec.string}, fret ${spec.fret}`}</strong>. Heard correctly: {Math.min(count, spec.required)} of {spec.required}.</p>
+      <p role="status" aria-live="polite" className="feedback-line" data-testid="lesson-feedback">{msg ?? (listening ? 'Listening… take your time.' : 'Listening is off — use the self-check when you have played it.')}</p>
+      {sim && (
+        <div className="sim-tray" aria-label="Simulation controls">
+          <button type="button" className="btn sim" onClick={() => engine.simulateAttack(spec.targetMidi)} data-testid="sim-correct">Pretend: right note</button>
+          <button type="button" className="btn sim" onClick={() => engine.simulateAttack(spec.targetMidi + (spec.fret > 0 ? -spec.fret : 1))}>Pretend: wrong note</button>
+        </div>
+      )}
+      {step.selfCheckLabel && <button type="button" className="btn outline block" onClick={() => onComplete('self_reported')}>{step.selfCheckLabel}</button>}
     </div>
   );
 }
@@ -273,10 +305,10 @@ function StopRingingPanel({ step, onComplete, evidenceSource }: { step: LessonSt
     };
   }, [mic, sim, evidenceSource]);
   return (
-    <div style={{ marginTop: 12 }}>
+    <div className="stack">
       {!sim && <ListenControl purpose="hear when the sound stops" />}
-      <p role="status" aria-live="polite" className="feedback">{msg ?? (sim ? 'Simulation cannot check this step — use the self-check.' : mic === 'on' ? 'Pluck string 1, let it ring, then stop it.' : 'Use the self-check when you have stopped the sound.')}</p>
-      {step.selfCheckLabel && <button onClick={() => onComplete('self_reported')}>{step.selfCheckLabel}</button>}
+      <p role="status" aria-live="polite" className="feedback-line">{msg ?? (sim ? 'Simulation cannot check this step — use the self-check.' : mic === 'on' ? 'Pluck string 1, let it ring, then stop it.' : 'Use the self-check when you have stopped the sound.')}</p>
+      {step.selfCheckLabel && <button type="button" className="btn outline block" onClick={() => onComplete('self_reported')}>{step.selfCheckLabel}</button>}
     </div>
   );
 }

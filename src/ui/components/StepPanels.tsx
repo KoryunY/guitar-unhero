@@ -33,7 +33,7 @@ export function QuizPanel({ quiz, onComplete }: { quiz: NonNullable<LessonStep['
       ))}
       {picked !== null && (
         <p role="status" className={`callout ${correct ? 'good' : 'warn'}`} data-testid="quiz-feedback">
-          {correct ? 'Yes. ' : 'Not quite — try another answer. '}
+          {correct ? 'Yes! ' : 'Not quite — try another answer. '}
           {correct ? quiz.explain : ''}
         </p>
       )}
@@ -102,13 +102,15 @@ export function TapPulsePanel({ bpm, beats, onComplete }: { bpm: number; beats: 
   };
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div className="stack">
       <div className="row">
-        <button className="primary" onClick={start} disabled={state === 'running'} data-testid="pulse-start">{state === 'done' ? 'Try again' : 'Start'}</button>
+        <button type="button" className="btn primary" onClick={start} disabled={state === 'running'} data-testid="pulse-start">{state === 'done' ? 'Try again' : 'Start'}</button>
         <button
+          type="button"
+          className="btn primary"
           onPointerDown={(e) => { if (state === 'running') taps.current.push(e.timeStamp); }}
           disabled={state !== 'running'}
-          style={{ minWidth: 160, minHeight: 64, fontSize: '1.2rem' }}
+          style={{ minWidth: 180, minHeight: 88, fontSize: '1.4rem', borderRadius: 44 }}
           aria-label="Tap on the beat"
           data-testid="pulse-tap"
         >
@@ -118,7 +120,7 @@ export function TapPulsePanel({ bpm, beats, onComplete }: { bpm: number; beats: 
           {beat === null ? '' : beat < 0 ? `count ${4 + beat + 1}` : `beat ${((beat - 1) % 4) + 1}`}
         </span>
       </div>
-      <p role="status" aria-live="polite" className="feedback" data-testid="pulse-feedback">{msg ?? `${bpm} BPM, ${beats} beats after a 4-click count-in.`}</p>
+      <p role="status" aria-live="polite" className="feedback-line" data-testid="pulse-feedback">{msg ?? `${bpm} BPM, ${beats} beats after a 4-click count-in.`}</p>
     </div>
   );
 }
@@ -180,16 +182,16 @@ export function SequencePanel({ step, onComplete, evidenceSource }: { step: Less
 
   const cur = seq.targets[Math.min(idx, seq.targets.length - 1)]!;
   return (
-    <div style={{ marginTop: 12 }}>
+    <div className="stack">
       {!sim && <ListenControl purpose="hear each note you pluck" />}
       {mic === 'on' && <InputMeter compact />}
       {seq.playFirst && (
         <div className="row" style={{ margin: '8px 0' }}>
-          <button onClick={playPhrase} disabled={playing}>{playing ? 'Playing… (listening paused)' : '▶ Play the phrase'}</button>
-          {!revealed && <button onClick={() => setRevealed(true)}>Show answer</button>}
+          <button type="button" className="btn tonal" onClick={playPhrase} disabled={playing}>{playing ? 'Playing… (listening paused)' : '▶ Play the phrase'}</button>
+          {!revealed && <button type="button" className="btn tonal" onClick={() => setRevealed(true)}>Show answer</button>}
         </div>
       )}
-      <ol className="small" aria-label="Notes to play in order">
+      <ol className="t-body" aria-label="Notes to play in order" style={{ margin: 0, paddingLeft: 24 }}>
         {seq.targets.map((t, i) => (
           <li key={i} className={i < idx ? 'state-correct' : ''} style={{ fontWeight: i === idx ? 700 : 400 }}>
             {i < idx ? '✓ ' : ''}
@@ -197,18 +199,18 @@ export function SequencePanel({ step, onComplete, evidenceSource }: { step: Less
           </li>
         ))}
       </ol>
-      <p role="status" aria-live="polite" className="feedback" data-testid="sequence-feedback">
+      <p role="status" aria-live="polite" className="feedback-line" data-testid="sequence-feedback">
         {msg ?? (done ? 'Done.' : listening ? `Listening for ${revealed ? pitchClassName(cur.targetMidi) : `note ${idx + 1}`}…` : 'Listening is off — use the self-check when you have played it.')}
       </p>
       <div className="row">
         {sim && !done && (
-          <>
-            <button onClick={() => engine.simulateAttack(cur.targetMidi)} data-testid="sim-correct">Simulate: right note</button>
-            <button onClick={() => engine.simulateAttack(cur.targetMidi + 2)}>Simulate: wrong note</button>
-          </>
+          <div className="sim-tray">
+            <button type="button" className="btn sim" onClick={() => engine.simulateAttack(cur.targetMidi)} data-testid="sim-correct">Pretend: right note</button>
+            <button type="button" className="btn sim" onClick={() => engine.simulateAttack(cur.targetMidi + 2)}>Pretend: wrong note</button>
+          </div>
         )}
-        {idx > 0 && !done && <button onClick={() => { idxRef.current = 0; setIdx(0); setMsg(null); }}>Start again</button>}
-        {step.selfCheckLabel && <button onClick={() => onComplete('self_reported')}>{step.selfCheckLabel}</button>}
+        {idx > 0 && !done && <button type="button" className="btn tonal" onClick={() => { idxRef.current = 0; setIdx(0); setMsg(null); }}>Start again</button>}
+        {step.selfCheckLabel && <button type="button" className="btn tonal" onClick={() => onComplete('self_reported')}>{step.selfCheckLabel}</button>}
       </div>
     </div>
   );
@@ -256,12 +258,12 @@ export function StrumAlongPanel({ strum, leftHanded }: { strum: NonNullable<Less
   const changing = pos !== null && pos.bar >= 0 && next !== undefined && next !== cur && pos.beat === 4;
   const shape = shapeFor(pos?.bar === -1 ? strum.bars[0]! : cur);
   return (
-    <div style={{ marginTop: 12 }}>
-      <p className="callout warn small">Not assessed: strummed chords and chord changes are practice with your own ears. Nothing here is scored.</p>
+    <div className="stack">
+      <p className="callout warn">Not assessed: strummed chords and chord changes are practice with your own ears. Nothing here is scored.</p>
       <div className="row">
-        <button className="primary" onClick={start} data-testid="strum-start">{pos ? 'Restart' : 'Start'}</button>
-        {pos && <button onClick={stop}>Stop</button>}
-        <span className="small muted">{strum.bpm} BPM · strum on beat 1</span>
+        <button type="button" className="btn primary" onClick={start} data-testid="strum-start">{pos ? 'Restart' : 'Start'}</button>
+        {pos && <button type="button" className="btn tonal" onClick={stop}>Stop</button>}
+        <span className="t-small muted">{strum.bpm} BPM · strum on beat 1</span>
       </div>
       <div aria-live="polite" style={{ fontSize: '2rem', fontWeight: 800, margin: '10px 0' }} data-testid="strum-now">
         {pos === null ? `${strum.bars.join(' · ')}` : pos.bar < 0 ? `Count-in ${pos.beat}` : `${cur} — beat ${pos.beat}${pos.beat === 1 ? ' STRUM' : ''}`}
@@ -305,16 +307,16 @@ export function EarComparePanel({ ear, onComplete }: { ear: NonNullable<LessonSt
   };
   const finished = i >= rounds.length - 1 && answered;
   return (
-    <div style={{ marginTop: 12 }}>
-      <p className="small">Round {Math.min(i + 1, rounds.length)} of {rounds.length} · score {score}</p>
+    <div className="stack">
+      <p className="t-small">Round {Math.min(i + 1, rounds.length)} of {rounds.length} · score {score}</p>
       <div className="row">
-        <button className="primary" onClick={play} data-testid="ear-play">▶ Play two notes</button>
-        <button onClick={() => answer('first')} disabled={answered} data-testid="ear-first">First was higher</button>
-        <button onClick={() => answer('second')} disabled={answered} data-testid="ear-second">Second was higher</button>
-        {answered && !finished && <button onClick={nextRound}>Next round</button>}
-        {finished && <button onClick={() => { setAttempt(attempt + 1); setI(0); setScore(0); setAnswered(false); setMsg(null); }}>Play again</button>}
+        <button type="button" className="btn primary" onClick={play} data-testid="ear-play">▶ Play two notes</button>
+        <button type="button" className="btn tonal" onClick={() => answer('first')} disabled={answered} data-testid="ear-first">First was higher</button>
+        <button type="button" className="btn tonal" onClick={() => answer('second')} disabled={answered} data-testid="ear-second">Second was higher</button>
+        {answered && !finished && <button type="button" className="btn tonal" onClick={nextRound}>Next round</button>}
+        {finished && <button type="button" className="btn tonal" onClick={() => { setAttempt(attempt + 1); setI(0); setScore(0); setAnswered(false); setMsg(null); }}>Play again</button>}
       </div>
-      <p role="status" aria-live="polite" className="feedback" data-testid="ear-feedback">
+      <p role="status" aria-live="polite" className="feedback-line" data-testid="ear-feedback">
         {msg}
         {finished && ` Final score ${score} of ${rounds.length}.${score >= Math.ceil(rounds.length * 0.66) ? ' Step complete.' : ' Try another set — your ears improve with practice.'}`}
       </p>

@@ -9,12 +9,13 @@ import { fileURLToPath } from 'node:url';
  * Production-only Content Security Policy. The dev server needs inline module
  * preambles for React refresh, so the policy is injected only into built HTML.
  * JSON Schema validators are precompiled (scripts/gen-validators.mjs), so no
- * 'unsafe-eval' is needed.
+ * 'unsafe-eval' is needed. 'wasm-unsafe-eval' allows compiling the optional,
+ * same-origin MediaPipe WebAssembly for the camera experiment (no JS eval).
  */
 function productionCsp(): Plugin {
   const policy = [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "worker-src 'self' blob:",
@@ -46,7 +47,10 @@ function offlineServiceWorker(): Plugin {
     name: 'gu-offline-sw',
     apply: 'build',
     generateBundle(_opts, bundle) {
-      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'sw.js');
+      // Built files + small public files. The optional camera model/WASM (~21 MB) are
+      // cached only when the learner turns hand tracking on.
+      const publicFiles = ['manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png'];
+      const files = [...Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'sw.js'), ...publicFiles];
       const version = createHash('sha256').update(files.sort().join('|')).digest('hex').slice(0, 12);
       const source = readFileSync(fileURLToPath(new URL('./src/offline/sw-template.js', import.meta.url)), 'utf8')
         .replace('__VERSION__', version)

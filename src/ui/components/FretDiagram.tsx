@@ -24,10 +24,10 @@ export function FretDiagram({ diagram, leftHanded }: { diagram: Diagram; leftHan
   return (
     <figure className="fret-diagram" style={{ margin: 0 }}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={desc}>
-        <rect x={0} y={0} width={W} height={H} fill="var(--panel)" />
+        <rect x={0} y={0} width={W} height={H} fill="var(--surface)" />
         {Array.from({ length: frets + 1 }, (_, f) => (
           <g key={f}>
-            <line x1={xOfFret(f)} x2={xOfFret(f)} y1={top - 6} y2={top + gap * 5 + 6} stroke="var(--ink)" strokeWidth={f === 0 ? 6 : 2} />
+            <line x1={xOfFret(f)} x2={xOfFret(f)} y1={top - 6} y2={top + gap * 5 + 6} stroke="var(--text)" strokeWidth={f === 0 ? 6 : 2} />
             {f > 0 && (
               <text x={(xOfFret(f) + xOfFret(f - 1)) / 2} y={H - 8} textAnchor="middle" fontSize="13" fill="var(--muted)">fret {f}</text>
             )}
@@ -38,8 +38,8 @@ export function FretDiagram({ diagram, leftHanded }: { diagram: Diagram; leftHan
           const hi = diagram.highlight.includes(s);
           return (
             <g key={s}>
-              <line x1={Math.min(nutX, xOfFret(frets))} x2={Math.max(nutX, xOfFret(frets))} y1={y} y2={y} stroke={hi ? 'var(--accent)' : 'var(--muted)'} strokeWidth={hi ? 4 : 1 + i * 0.5} />
-              <text x={leftHanded ? W - 6 : 6} y={y + 5} fontSize="13" textAnchor={leftHanded ? 'end' : 'start'} fill={hi ? 'var(--accent)' : 'var(--ink)'} fontWeight={hi ? 700 : 400}>
+              <line x1={Math.min(nutX, xOfFret(frets))} x2={Math.max(nutX, xOfFret(frets))} y1={y} y2={y} stroke={hi ? 'var(--primary)' : 'var(--muted)'} strokeWidth={hi ? 4 : 1 + i * 0.5} />
+              <text x={leftHanded ? W - 6 : 6} y={y + 5} fontSize="13" textAnchor={leftHanded ? 'end' : 'start'} fill={hi ? 'var(--primary)' : 'var(--text)'} fontWeight={hi ? 700 : 400}>
                 {s} {STRING_LABELS[s].name}
               </text>
             </g>
@@ -50,13 +50,13 @@ export function FretDiagram({ diagram, leftHanded }: { diagram: Diagram; leftHan
           const cy = top + (d.string - 1) * gap;
           return (
             <g key={`${d.string}-${d.fret}`}>
-              <circle cx={cx} cy={cy} r={12} fill="var(--accent)" stroke="var(--ink)" />
-              <text x={cx} y={cy + 5} textAnchor="middle" fontSize="14" fontWeight="700" fill="var(--accent-ink)">{d.finger ?? '•'}</text>
+              <circle cx={cx} cy={cy} r={12} fill="var(--primary)" stroke="var(--text)" />
+              <text x={cx} y={cy + 5} textAnchor="middle" fontSize="14" fontWeight="700" fill="var(--on-primary)">{d.finger ?? '•'}</text>
             </g>
           );
         })}
         {(diagram.markers ?? []).map((m) => (
-          <text key={`m${m.string}`} x={nutX + (leftHanded ? 14 : -14)} y={top + (m.string - 1) * gap + 5} textAnchor="middle" fontSize="15" fontWeight="700" fill={m.mark === 'x' ? 'var(--bad)' : 'var(--good)'}>
+          <text key={`m${m.string}`} x={nutX + (leftHanded ? 14 : -14)} y={top + (m.string - 1) * gap + 5} textAnchor="middle" fontSize="15" fontWeight="700" fill={m.mark === 'x' ? 'var(--incorrect)' : 'var(--correct)'}>
             {m.mark}
           </text>
         ))}

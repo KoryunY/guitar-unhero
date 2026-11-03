@@ -4,7 +4,8 @@ import { estimateLoopback } from '../../audio/calibration';
 import { useApp } from '../AppContext';
 import { InputMeter } from '../components/InputMeter';
 import { ListenControl } from '../components/ListenControl';
-import { navigate } from '../App';
+import { navigate, StatusChip } from '../App';
+import { TopBar } from '../kit';
 import type { AttackObservation } from '../../audio/observations';
 
 function yesNo(v: boolean | null): string {
@@ -76,8 +77,8 @@ export function Setup() {
 
   const track = engine.track;
   return (
-    <section aria-labelledby="setup-h">
-      <h1 id="setup-h">Setup</h1>
+    <section aria-label="Microphone">
+      <TopBar title="Microphone" back={() => navigate('settings')}><StatusChip /></TopBar>
       <div className="grid2">
         <div className="panel">
           <h2 style={{ marginTop: 0 }}>Microphone</h2>
@@ -119,6 +120,7 @@ export function Setup() {
             <label><input type="radio" name="route" checked={settings.outputRoute === 'unknown'} onChange={() => updateSettings({ outputRoute: 'unknown' })} /> Not sure</label>
           </fieldset>
           <p className="small">Headphones stop the app's own guide notes from reaching the microphone. On speakers, guide notes are muted while listening so the app never “hears itself”. Avoid Bluetooth headphones for timing practice — they add delay.</p>
+          {settings.advanced ? (<>
           <h3>Timing calibration</h3>
           <p className="small" data-testid="calibration-status">
             {deltaIO === null
@@ -139,11 +141,12 @@ export function Setup() {
             />
           </label>
           {settings.calibration && <button onClick={() => updateSettings({ calibration: null })}>Clear calibration</button>}
+          </>) : <p className="small muted">Timing calibration is in Settings → Advanced tools.</p>}
         </div>
       </div>
       <div className="row">
-        <button className="primary" onClick={() => navigate('tuner')}>Next: tune the guitar</button>
-        <button onClick={() => navigate('learn')}>Go to lessons</button>
+        <button className="btn primary" onClick={() => navigate('tune')}>Tune the guitar</button>
+        <button className="btn tonal" onClick={() => navigate('learn')}>Lessons</button>
       </div>
     </section>
   );

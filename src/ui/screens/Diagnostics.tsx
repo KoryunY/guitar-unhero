@@ -5,6 +5,8 @@ import { encodeWav16 } from '../../audio/wav';
 import { midiName, openMidi } from '../../domain/tuning';
 import type { StringNumber } from '../../domain/score';
 import { useApp } from '../AppContext';
+import { navigate, StatusChip } from '../App';
+import { TopBar } from '../kit';
 import { InputMeter } from '../components/InputMeter';
 import { ListenControl } from '../components/ListenControl';
 
@@ -94,8 +96,8 @@ export function Diagnostics() {
   const base = `gu-${target.string}-${target.fret}-${clip?.label.recordedAt.replace(/[:.]/g, '-') ?? ''}`;
 
   return (
-    <section aria-labelledby="diag-h">
-      <h1 id="diag-h">Diagnostics</h1>
+    <section aria-label="Mic test lab">
+      <TopBar title="Mic test lab" back={() => navigate('settings')}><StatusChip /></TopBar>
       <p className="muted">For checking the app on your own guitar, microphone and room. Nothing here is uploaded.</p>
       {sim ? <p className="callout sim">Diagnostics need a real microphone; simulation has nothing to measure.</p> : <ListenControl purpose="measure what it hears from your guitar" />}
 

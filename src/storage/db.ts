@@ -2,12 +2,13 @@
  * Small IndexedDB layer with versioned migrations and transactional writes.
  * Only settings, lesson evidence and practice summaries are stored — never audio.
  */
-import { DEFAULT_SETTINGS, type LessonProgress, type PracticeSummaryRecord, type Settings } from './types';
+import { DEFAULT_SETTINGS, type AssetRecord, type LessonProgress, type PracticeSummaryRecord, type Settings, type SongRecord } from './types';
+import type { Score } from '../domain/score';
 
 export const DB_NAME = 'guitar-unhero';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
-type StoreName = 'settings' | 'lessons' | 'summaries';
+type StoreName = 'settings' | 'lessons' | 'summaries' | 'songs' | 'arrangements' | 'assets';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -39,6 +40,12 @@ export function openDb(factory: IDBFactory = indexedDB): Promise<IDBDatabase> {
         db.createObjectStore('lessons', { keyPath: 'lessonId' });
         const s = db.createObjectStore('summaries', { keyPath: 'id' });
         s.createIndex('finishedAt', 'finishedAt');
+      }
+      // Migration 1 → 2: song workspace (M3). Large audio blobs live apart from metadata.
+      if (from < 2) {
+        db.createObjectStore('songs', { keyPath: 'id' });
+        db.createObjectStore('arrangements', { keyPath: 'key' });
+        db.createObjectStore('assets', { keyPath: 'id' });
       }
     };
     r.onsuccess = () => {
@@ -122,5 +129,55 @@ export async function replaceAll(settings: Settings, lessons: LessonProgress[], 
   tx.objectStore('settings').put(settings, 'settings');
   lessons.forEach((l) => tx.objectStore('lessons').put(l));
   summaries.forEach((s) => tx.objectStore('summaries').put(s));
+  await done(tx);
+}
+
+// ---------------- song workspace (M3) ----------------
+export async function loadSongs(): Promise<SongRecord[]> {
+  const db = await openDb();
+  const all = (await req(db.transaction('songs').objectStore('songs').getAll())) as SongRecord[];
+  return all.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+}
+
+export async function saveSong(s: SongRecord): Promise<void> {
+  const db = await openDb();
+  const tx = db.transaction('songs', 'readwrite');
+  tx.objectStore('songs').put(s);
+  await done(tx);
+}
+
+/** Arrangement versions are immutable: a key is `${arrangementId}@${version}`. */
+export async function saveArrangement(score: Score): Promise<void> {
+  const db = await openDb();
+  const tx = db.transaction('arrangements', 'readwrite');
+  tx.objectStore('arrangements').put({ key: `${score.arrangementId}@${score.version}`, score });
+  await done(tx);
+}
+
+export async function loadArrangement(arrangementId: string, version: number): Promise<Score | null> {
+  const db = await openDb();
+  const r = (await req(db.transaction('arrangements').objectStore('arrangements').get(`${arrangementId}@${version}`))) as { score: Score } | undefined;
+  return r?.score ?? null;
+}
+
+export async function saveAsset(a: AssetRecord): Promise<void> {
+  const db = await openDb();
+  const tx = db.transaction('assets', 'readwrite');
+  tx.objectStore('assets').put(a);
+  await done(tx);
+}
+
+export async function loadAsset(id: string): Promise<AssetRecord | null> {
+  const db = await openDb();
+  return ((await req(db.transaction('assets').objectStore('assets').get(id))) as AssetRecord | undefined) ?? null;
+}
+
+/** Delete a song, its arrangement versions and its audio. */
+export async function deleteSong(song: SongRecord): Promise<void> {
+  const db = await openDb();
+  const tx = db.transaction(['songs', 'arrangements', 'assets'], 'readwrite');
+  tx.objectStore('songs').delete(song.id);
+  for (const v of song.versions) tx.objectStore('arrangements').delete(`${v.arrangementId}@${v.version}`);
+  if (song.assetId) tx.objectStore('assets').delete(song.assetId);
   await done(tx);
 }

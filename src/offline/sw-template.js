@@ -27,6 +27,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(fetch(req).catch(() => caches.match('./', { ignoreSearch: true, ignoreVary: true }).then((r) => r || caches.match('./index.html'))));
     return;
   }
+  // Optional camera assets: cache on first use (large; not precached).
+  if (url.pathname.includes('/mediapipe/') || url.pathname.includes('/models/')) {
+    event.respondWith(
+      caches.open(CACHE).then((c) => c.match(req, { ignoreVary: true }).then((hit) => hit || fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; }))),
+    );
+    return;
+  }
   // ignoreVary: module scripts carry an Origin header the precache request did not.
   event.respondWith(caches.match(req, { ignoreVary: true }).then((hit) => hit || fetch(req)));
 });

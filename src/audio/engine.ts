@@ -13,7 +13,7 @@ import type { AttackObservation, PitchFrame } from './observations';
 import { SignalTimeline } from '../assessment/timeline';
 import { midiToHz } from '../domain/tuning';
 
-export type Bus = 'guide' | 'metronome' | 'reference';
+export type Bus = 'guide' | 'metronome' | 'reference' | 'backing';
 
 export interface EngineEvents {
   frame: PitchFrame;
@@ -51,7 +51,7 @@ export class AudioEngine {
   lastFrame: PitchFrame | null = null;
   private master: GainNode | null = null;
   private buses: Partial<Record<Bus, GainNode>> = {};
-  private busLevels: Record<Bus, number> = { guide: 0.8, metronome: 0.6, reference: 0.8 };
+  private busLevels: Record<Bus, number> = { guide: 0.8, metronome: 0.6, reference: 0.8, backing: 0.8 };
   private muted = false;
   private pluckCache = new Map<number, AudioBuffer>();
   private clickCache = new Map<string, AudioBuffer>();
@@ -94,7 +94,7 @@ export class AudioEngine {
       this.master = ctx.createGain();
       this.master.gain.value = this.muted ? 0 : 1;
       this.master.connect(limiter).connect(ctx.destination);
-      (['guide', 'metronome', 'reference'] as Bus[]).forEach((b) => {
+      (['guide', 'metronome', 'reference', 'backing'] as Bus[]).forEach((b) => {
         const g = ctx.createGain();
         g.gain.value = this.busLevels[b];
         g.connect(this.master!);
@@ -222,6 +222,48 @@ export class AudioEngine {
 
   /** Recent metronome click times; an unpitched sound just after one is likely its echo. */
   private clickTimes: number[] = [];
+
+  /** Play part of a decoded backing recording from `offsetSec`, starting at `when`, stopping at `endWhen`. */
+  playBacking(buffer: AudioBuffer, when: number, offsetSec: number, endWhen: number): Handle | null {
+    if (!this.ctx) return null;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    // If we are late, skip ahead in the recording by the same amount (keeps sync).
+    const late = Math.max(0, now - when);
+    const start = Math.max(when, now);
+    const off = Math.max(0, offsetSec + late);
+    if (off >= buffer.duration || endWhen <= start) return null;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(1, start + 0.01);
+    src.connect(g).connect(this.buses.backing!);
+    src.start(start, off);
+    g.gain.setValueAtTime(1, Math.max(start + 0.01, endWhen - 0.015));
+    g.gain.linearRampToValueAtTime(0, endWhen);
+    src.stop(endWhen + 0.01);
+    src.onended = () => {
+      src.disconnect();
+      g.disconnect();
+    };
+    let stopped = false;
+    return {
+      stop: () => {
+        if (stopped) return;
+        stopped = true;
+        try {
+          const n = ctx.currentTime;
+          g.gain.cancelScheduledValues(n);
+          g.gain.setValueAtTime(g.gain.value, n);
+          g.gain.linearRampToValueAtTime(0, n + 0.015);
+          src.stop(n + 0.02);
+        } catch {
+          /* already stopped */
+        }
+      },
+    };
+  }
 
   playClick(when: number, accent: boolean): Handle | null {
     if (!this.ctx) return null;

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { applyUpdate, checkForUpdate, offlineState, onOfflineState, type OfflineState } from '../../offline/register';
 import { useApp } from '../AppContext';
+import { navigate } from '../App';
+import { TopBar } from '../kit';
 import { buildExport, parseImport } from '../../storage/exchange';
 import { SummaryCard } from '../practice/SummaryCard';
 import { LESSONS } from '../../learning/lessons';
 
 export function DataScreen() {
-  const { settings, updateSettings, lessons, summaries, deleteData, importData } = useApp();
+  const { settings, lessons, summaries, deleteData, importData } = useApp();
   const [msg, setMsg] = useState<{ kind: 'good' | 'bad'; text: string } | null>(null);
   const [del, setDel] = useState({ progress: true, summaries: true, settings: false });
   const [confirmDel, setConfirmDel] = useState(false);
@@ -48,34 +50,15 @@ export function DataScreen() {
   };
 
   return (
-    <section aria-labelledby="data-h">
-      <h1 id="data-h">Settings &amp; data</h1>
+    <section aria-label="Back up and restore">
+      <TopBar title="Back up and restore" back={() => navigate('settings')} />
       {msg && <p className={`callout ${msg.kind}`} role="status" data-testid="data-msg">{msg.text}</p>}
       <div className="grid2">
-        <div className="panel">
-          <h2 style={{ marginTop: 0 }}>Display</h2>
-          <fieldset>
-            <legend>Handedness</legend>
-            <label><input type="radio" name="h2" checked={settings.handedness === 'right'} onChange={() => updateSettings({ handedness: 'right' })} /> Right-handed guitar</label>{' '}
-            <label><input type="radio" name="h2" checked={settings.handedness === 'left'} onChange={() => updateSettings({ handedness: 'left' })} /> Left-handed guitar (mirrored diagrams)</label>
-          </fieldset>
-          <fieldset>
-            <legend>Motion</legend>
-            {(['system', 'on', 'off'] as const).map((m) => (
-              <label key={m} style={{ marginRight: 12 }}><input type="radio" name="rm" checked={settings.reducedMotion === m} onChange={() => updateSettings({ reducedMotion: m })} /> {m === 'system' ? 'Follow system' : m === 'on' ? 'Reduced (step mode)' : 'Smooth'}</label>
-            ))}
-          </fieldset>
-          <label><input type="checkbox" checked={settings.highContrast} onChange={(e) => updateSettings({ highContrast: e.target.checked })} /> High contrast</label>
-          <h3>Sound</h3>
-          <label className="small" style={{ display: 'block' }}>Reference/demo volume <input type="range" min={0} max={1} step={0.05} value={settings.referenceLevel} onChange={(e) => updateSettings({ referenceLevel: Number(e.target.value) })} /></label>
-          <label className="small" style={{ display: 'block' }}>Guide volume <input type="range" min={0} max={1} step={0.05} value={settings.guideLevel} onChange={(e) => updateSettings({ guideLevel: Number(e.target.value) })} /></label>
-          <label className="small" style={{ display: 'block' }}>Metronome volume <input type="range" min={0} max={1} step={0.05} value={settings.metronomeLevel} onChange={(e) => updateSettings({ metronomeLevel: Number(e.target.value) })} /></label>
-        </div>
         <div className="panel">
           <h2 style={{ marginTop: 0 }}>Your data</h2>
           <p className="small">Stored only in this browser: settings, lesson steps (with how each was evidenced: heard, self-check or simulation) and practice summaries. No audio is ever stored or uploaded. Clearing browser data or using another device starts fresh — export to keep a copy.</p>
           <div className="row">
-            <button className="primary" onClick={doExport} data-testid="export">Export progress</button>
+            <button className="btn primary" onClick={doExport} data-testid="export">Export progress</button>
             <button onClick={() => fileRef.current?.click()}>Import progress…</button>
             <input ref={fileRef} type="file" accept="application/json,.json" hidden data-testid="import-file" onChange={(e) => { const f = e.target.files?.[0]; if (f) void doImport(f); e.target.value = ''; }} />
           </div>

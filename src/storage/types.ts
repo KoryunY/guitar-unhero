@@ -6,6 +6,10 @@ export type InputMode = 'microphone' | 'simulation' | 'none';
 export type OutputRoute = 'headphones' | 'speakers' | 'unknown';
 
 export interface Settings {
+  /** Show developer/advanced tools (mic lab, calibration, backup/restore, details). */
+  advanced: boolean;
+  /** Experimental camera self-view (off by default). */
+  cameraLab: boolean;
   handedness: 'right' | 'left';
   hasGuitar: boolean | null;
   inputMode: InputMode;
@@ -26,6 +30,8 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  advanced: false,
+  cameraLab: false,
   handedness: 'right',
   hasGuitar: null,
   inputMode: 'none',
@@ -97,4 +103,49 @@ export interface ExportManifest {
   settings: Settings;
   lessons: LessonProgress[];
   summaries: PracticeSummaryRecord[];
+}
+
+import type { Rights } from '../domain/score';
+
+/** Local audio file imported by the learner (never uploaded). */
+export interface AssetRecord {
+  id: string;
+  name: string;
+  mime: string;
+  bytes: number;
+  durationSec: number;
+  sampleRate: number;
+  channels: number;
+  sha256: string;
+  createdAt: string;
+  rights: Rights;
+  blob: Blob;
+}
+
+/** Status labels required by spec §7.2. */
+export type SongStatus = 'backing only' | 'score attached' | 'candidate transcription' | 'review needed' | 'reviewed arrangement';
+
+export interface SongVersionRef {
+  arrangementId: string;
+  version: number;
+  role: 'original_exercise' | 'transcription_candidate' | 'reviewed_part' | 'simplified_arrangement';
+  title: string;
+  createdAt: string;
+  note: string;
+}
+
+export interface SongRecord {
+  id: string;
+  title: string;
+  assetId: string | null;
+  /** Main editable part (latest version is the last matching entry in `versions`). */
+  mainArrangementId: string | null;
+  versions: SongVersionRef[];
+  /** Alignment of the recording to the score (tick ↔ recording second). */
+  anchors: { tick: number; sourceSec: number }[];
+  alignment: 'none' | 'tapped' | 'reviewed';
+  /** Raw transcription leftovers to show as uncertain regions in review. */
+  uncertain: { onsetSec: number; reason: string }[];
+  createdAt: string;
+  updatedAt: string;
 }
