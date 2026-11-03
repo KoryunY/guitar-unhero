@@ -95,7 +95,7 @@ export function Today() {
                 <div className="t-card">{last.title}</div>
                 <p className="t-small" style={{ marginTop: 6 }}>{last.suggestion}</p>
                 {last.simulated && <span className="badge sim">Simulation</span>}
-                <div><button type="button" className="btn tonal" onClick={() => navigate('practice', last.arrangementId)} style={{ marginTop: 8 }}>Practise again</button></div>
+                <div><button type="button" className="btn tonal" onClick={() => { const m = /^song\.(song-[^.]+)\./.exec(last.arrangementId); if (m) navigate('song', m[1]!); else navigate('practice', last.arrangementId); }} style={{ marginTop: 8 }}>Practise again</button></div>
               </div>
             </>
           )}

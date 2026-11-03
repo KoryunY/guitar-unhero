@@ -91,7 +91,7 @@ export function semanticIssues(score: Score): ValidationIssue[] {
     if (!isStringNumber(ev.string)) {
       issues.push({ path: `${p}/string`, code: 'semantic.string', message: `String ${ev.string} is outside 1–6.` });
     } else {
-      if (ev.fret > score.instrument.maxFret) {
+      if (ev.fret + score.instrument.capo > score.instrument.maxFret) {
         issues.push({
           path: `${p}/fret`,
           code: 'semantic.fret_range',
@@ -154,7 +154,9 @@ export function semanticIssues(score: Score): ValidationIssue[] {
     chordIds.add(c.id);
     if (c.frets.every((f) => f === null)) issues.push({ path: `${p}/frets`, code: 'semantic.empty_chord', message: 'A chord must play at least one string.' });
     c.frets.forEach((f, k) => {
-      if (f !== null && f > score.instrument.maxFret) issues.push({ path: `${p}/frets/${k}`, code: 'semantic.fret_range', message: `Fret ${f} exceeds maxFret ${score.instrument.maxFret}.` });
+      if (f !== null && f + score.instrument.capo > score.instrument.maxFret) issues.push({ path: `${p}/frets/${k}`, code: 'semantic.fret_range', message: `Fret ${f}${score.instrument.capo ? ` above capo ${score.instrument.capo}` : ''} exceeds maxFret ${score.instrument.maxFret}.` });
+      const fg = c.fingers?.[k];
+      if (fg && (f === null || f === 0)) issues.push({ path: `${p}/fingers/${k}`, code: 'semantic.open_string_finger', message: 'A finger is given for an open or unplayed string.' });
     });
     if (c.startTick + c.durationTicks > score.durationTicks) issues.push({ path: p, code: 'semantic.out_of_bounds', message: `Chord "${c.id}" ends after the score.` });
     if (prevChord) {

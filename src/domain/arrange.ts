@@ -5,7 +5,7 @@
  * disclosures. Only octave shifts and omissions change pitch content, so the
  * key — and therefore a backing recording — stays compatible.
  */
-import { PPQ, sortEvents, type NoteEvent, type Score, type Transformation } from './score';
+import { isUnreviewedCandidate, PPQ, sortEvents, type NoteEvent, type Score, type Transformation } from './score';
 import { BEGINNER_PROFILE, planFingering, positionsFor, type FingeringProfile } from './fingering';
 
 export type DerivationLevel = 'pulse' | 'strong-beats' | 'easy-melody';
@@ -34,7 +34,8 @@ function derived(src: Score, level: DerivationLevel, events: NoteEvent[], log: T
     title: `${src.title} — ${LEVEL_INFO[level].title.toLowerCase()} version`.slice(0, 200),
     role: 'simplified_arrangement',
     events: sortEvents(events),
-    provenance: { ...src.provenance, method: 'derived', reviewStatus: 'unreviewed', reviewer: null, notes: `Derived automatically (${level}). ${LEVEL_INFO[level].disclose}` },
+    // A version made from unreviewed machine notes stays a candidate (never assessed).
+    provenance: { ...src.provenance, method: isUnreviewedCandidate(src) ? 'model_candidate' : 'derived', reviewStatus: 'unreviewed', reviewer: null, notes: `Derived automatically (${level}). ${LEVEL_INFO[level].disclose}` },
     transformations: log.slice(0, 1000),
   };
 }

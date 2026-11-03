@@ -26,7 +26,8 @@ export function importedToSource(song: ImportedSong, base: { arrangementId: stri
     const g = byTick.get(t)!;
     const nextT = ticks[i + 1] ?? song.durationTicks;
     const fretted = g.filter((n) => n.string && n.fret !== undefined);
-    if (g.length >= 2 && fretted.length === g.length && song.capo === 0) {
+    // Shapes are only meaningful in standard tuning; otherwise keep the sounding notes.
+    if (g.length >= 2 && fretted.length === g.length && song.capo === 0 && song.tuning.standard) {
       const frets: (number | null)[] = [null, null, null, null, null, null];
       for (const n of fretted) frets[n.string! - 1] = n.fret!;
       shapes.push({ startTick: t, durationTicks: Math.max(PPQ / 4, Math.min(Math.max(...g.map((n) => n.durationTicks)), nextT - t)), name: null, fretsByString: frets });
@@ -48,7 +49,7 @@ export function importedToSource(song: ImportedSong, base: { arrangementId: stri
       const p = parseChordName(c.name);
       return { startTick: c.startTick, durationTicks: c.durationTicks, name: p ? transposeChord(p, song.capo).display : c.name };
     }
-    return { startTick: c.startTick, durationTicks: c.durationTicks, name: c.name, ...(c.fretsByString ? { fretsByString: c.fretsByString } : {}) };
+    return { startTick: c.startTick, durationTicks: c.durationTicks, name: c.name, ...(c.fretsByString && song.tuning.standard ? { fretsByString: c.fretsByString } : {}) };
   });
   if (song.capo > 0) warnings.push(`The original uses a capo on fret ${song.capo}. Chords are shown as they sound; the Easy level picks its own capo.`);
   // Named chords (chord sheets, MusicXML harmony) win; tab shapes fill the gaps.

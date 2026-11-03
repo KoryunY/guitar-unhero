@@ -22,17 +22,18 @@ export function completedLessonIds(lessons: Record<string, LessonProgress>): Set
 
 /** Days in a row (ending today or yesterday) with any practice or lesson activity. */
 export function streakDays(summaries: readonly PracticeSummaryRecord[], lessons: Record<string, LessonProgress>, now = new Date()): number {
+  // Local calendar days (a late-evening session counts for that evening, not "tomorrow" in UTC).
+  const key = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
   const days = new Set<string>([
-    ...summaries.map((s) => s.finishedAt.slice(0, 10)),
-    ...Object.values(lessons).flatMap((l) => l.completedSteps.map((c) => c.at.slice(0, 10))),
+    ...summaries.map((s) => key(new Date(s.finishedAt))),
+    ...Object.values(lessons).flatMap((l) => l.completedSteps.map((c) => key(new Date(c.at)))),
   ]);
-  const key = (d: Date) => d.toISOString().slice(0, 10);
   const d = new Date(now);
-  if (!days.has(key(d))) d.setUTCDate(d.getUTCDate() - 1);
+  if (!days.has(key(d))) d.setDate(d.getDate() - 1);
   let n = 0;
   while (days.has(key(d))) {
     n++;
-    d.setUTCDate(d.getUTCDate() - 1);
+    d.setDate(d.getDate() - 1);
   }
   return n;
 }

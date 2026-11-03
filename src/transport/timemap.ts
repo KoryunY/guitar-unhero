@@ -57,18 +57,24 @@ export class AnchorTimeMap implements TimeMap {
     this.anchors = [...anchors];
   }
 
-  private segIndexByTick(tick: number): number {
+  /** Binary search: the segment [i, i+1] containing `v` (clamped to the first/last segment). */
+  private segIndex(v: number, key: 'tick' | 'sourceSec'): number {
     const a = this.anchors;
-    let i = 0;
-    while (i < a.length - 2 && tick >= a[i + 1]!.tick) i++;
-    return i;
+    let lo = 0, hi = a.length - 2;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (v >= a[mid]![key]) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  private segIndexByTick(tick: number): number {
+    return this.segIndex(tick, 'tick');
   }
 
   private segIndexBySec(sec: number): number {
-    const a = this.anchors;
-    let i = 0;
-    while (i < a.length - 2 && sec >= a[i + 1]!.sourceSec) i++;
-    return i;
+    return this.segIndex(sec, 'sourceSec');
   }
 
   tickToSec(tick: number): number {

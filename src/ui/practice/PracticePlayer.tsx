@@ -93,7 +93,7 @@ export function PracticePlayer({
   const [stretchState, setStretchState] = useState<'idle' | 'working' | 'failed'>('idle');
   const rateNow = controller.transport.rate;
   useEffect(() => {
-    if (!backing || rateNow === 1 || controller.hasBackingAt(rateNow)) return;
+    if (!backing || !backingOn || rateNow === 1 || controller.hasBackingAt(rateNow)) return;
     let cancelled = false;
     setStretchState('working');
     stretchedBacking(backing, rateNow).then(
@@ -101,7 +101,7 @@ export function PracticePlayer({
       () => !cancelled && setStretchState('failed'),
     );
     return () => { cancelled = true; };
-  }, [backing, rateNow, controller]);
+  }, [backing, backingOn, rateNow, controller]);
 
   useEffect(() => {
     const off = controller.subscribe(force);
@@ -232,7 +232,7 @@ export function PracticePlayer({
         <p className="t-caption" style={{ margin: 0 }}>Electric tip: use a clean tone (no distortion) while notes are checked — distortion adds extra pitches the checker can’t untangle. Put the mic near the amp speaker.</p>
       )}
       {backing && t.rate !== 1 && backingOn && !controller.hasBackingAt(t.rate) && (
-        <Callout kind="info">{stretchState === 'working' ? `Making a ${Math.round(t.rate * 100)} % version of the recording (same pitch)…` : stretchState === 'failed' ? 'The slowed-down recording could not be made in this browser; the beat still plays.' : 'Preparing the slowed-down recording…'}</Callout>
+        <Callout kind="info">{stretchState === 'working' ? `Making a ${Math.round(t.rate * 100)} % version of the recording (same pitch)… It joins in the next time you press play.` : stretchState === 'failed' ? 'The slowed-down recording could not be made in this browser; the beat still plays.' : 'Preparing the slowed-down recording…'}</Callout>
       )}
 
       <div className="upnext" aria-live="off" data-testid="upnext">

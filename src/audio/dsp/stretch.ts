@@ -6,7 +6,7 @@
  * (cross-correlation searched on a 4× decimated signal, then refined).
  * Pure function: runs in a worker and in tests.
  */
-export function timeStretch(x: Float32Array, sampleRate: number, rate: number, onProgress?: (f: number) => void): Float32Array {
+export function timeStretch(x: Float32Array, sampleRate: number, rate: number, onProgress?: (f: number) => void, alignShift = 1): Float32Array {
   if (!(rate > 0) || rate === 1 || x.length === 0) return x.slice();
   const N = sampleRate > 24000 ? 2048 : 1024;
   const Hs = N / 2;
@@ -23,14 +23,17 @@ export function timeStretch(x: Float32Array, sampleRate: number, rate: number, o
     xd[i] = s / D;
   }
   const outLen = Math.ceil(x.length / rate);
-  const y = new Float32Array(outLen + N);
+  const y = new Float32Array(outLen + 2 * N);
   const frames = Math.ceil(outLen / Hs) + 1;
   const L = Hs; // overlap length compared
   let prev = 0;
+  // Frame k is centred at output k·Hs + N/2; take input centred at (k·Hs + N/2)·rate so that
+  // input time t lands at output t / rate (no constant lead/lag between the copy and the beat).
+  const shift = alignShift * (N / 2) * (1 - rate);
   for (let k = 0; k < frames; k++) {
-    const nominal = Math.round(k * Ha);
+    const nominal = Math.round(k * Ha - shift);
     let pos = nominal;
-    if (k > 0) {
+    if (k > 0 && nominal - tol >= 0) {
       const target = prev + Hs; // natural continuation of the previous frame
       // Coarse search on the decimated signal.
       const tD = Math.floor(target / D), lD = Math.floor(L / D);
@@ -63,7 +66,7 @@ export function timeStretch(x: Float32Array, sampleRate: number, rate: number, o
       }
     }
     const o = k * Hs;
-    for (let i = 0; i < N; i++) {
+    for (let i = Math.max(0, -pos); i < N; i++) {
       const v = x[pos + i];
       if (v === undefined) break;
       y[o + i]! += v * win[i]!;
@@ -71,5 +74,8 @@ export function timeStretch(x: Float32Array, sampleRate: number, rate: number, o
     prev = pos;
     if (onProgress && k % 2000 === 0) onProgress(k / frames);
   }
-  return y.subarray(0, outLen);
+  // Measured residual: transients come out ~0.22·N late at every rate (window-weighted
+  // placement + the search's forward bias). Drop that lead-in so beats stay aligned.
+  const lead = Math.round(N * 0.22 * alignShift);
+  return y.subarray(lead, lead + outLen);
 }

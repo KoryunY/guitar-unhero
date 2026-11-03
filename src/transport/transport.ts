@@ -142,6 +142,9 @@ export class Transport {
     this.events = sortEvents(score.events);
     this.strums = expandStrums(score.chords);
     this.map = map ?? new ConstantTempoMap(scoreBpm(score));
+    this.eventSecList = this.events.map((e) => this.map.tickToSec(e.startTick));
+    this.events.forEach((e, i) => this.secByEventId.set(e.id, this.eventSecList[i]!));
+    this.strumSecList = this.strums.map((st) => this.map.tickToSec(st.tick));
     this.startSec = this.map.tickToSec(0);
     this.bpm = this.map.bpmAt(this.startSec);
     this.beatSec = this.map.beatSecAt(this.startSec);
@@ -184,8 +187,25 @@ export class Transport {
     return this.seg?.loopIteration ?? 0;
   }
 
+  /** Seconds of each event / strum start, computed once (long songs have thousands). */
+  private readonly secByEventId = new Map<string, number>();
+  private eventSecList: number[] = [];
+  private strumSecList: number[] = [];
+
   eventSec(ev: NoteEvent): number {
-    return this.map.tickToSec(ev.startTick);
+    const cached = this.secByEventId.get(ev.id);
+    return cached ?? this.map.tickToSec(ev.startTick);
+  }
+
+  /** First index with list[i] >= v (lists are ascending). */
+  private static lowerBound(list: readonly number[], v: number): number {
+    let lo = 0, hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid]! < v) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
   }
 
   tickToSec(tick: number): number {
@@ -448,9 +468,13 @@ export class Transport {
           loopIteration: seg.loopIteration,
         });
       }
+      // Only look at events whose source time falls in this segment and window.
+      const sLo = Math.max(seg.s0, sourceAt(seg, c1)) - 1e-6;
+      const sHi = Math.min(seg.endS, sourceAt(seg, c2)) + 1e-6;
       if (this.mode !== 'wait') {
-        for (const ev of this.events) {
-          const s = this.eventSec(ev);
+        for (let i = Transport.lowerBound(this.eventSecList, sLo); i < this.events.length && this.eventSecList[i]! <= sHi; i++) {
+          const ev = this.events[i]!;
+          const s = this.eventSecList[i]!;
           if (s < seg.s0 - 1e-9 || s >= seg.endS - 1e-9) continue;
           const t = contextAt(seg, s);
           if (t >= c1 && t < c2) {
@@ -468,8 +492,9 @@ export class Transport {
           }
         }
       }
-      for (const st of this.strums) {
-        const s = this.map.tickToSec(st.tick);
+      for (let i = Transport.lowerBound(this.strumSecList, sLo); i < this.strums.length && this.strumSecList[i]! <= sHi; i++) {
+        const st = this.strums[i]!;
+        const s = this.strumSecList[i]!;
         if (s < seg.s0 - 1e-9 || s >= seg.endS - 1e-9) continue;
         const t = contextAt(seg, s);
         if (t >= c1 && t < c2) {

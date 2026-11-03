@@ -39,6 +39,7 @@ export function voiceProgression(chords: readonly SourceChord[], level: Level): 
   const notes = new Set<string>();
   const sounding: string[] = [];
   for (const p of parsed) if (p && !sounding.includes(p.display)) sounding.push(p.display);
+  // Spelling differences (A# vs Bb) are the same chord.
   const allNamed = chords.length > 0 && parsed.every((p) => p !== null);
 
   if ((level === 'easy' || level === 'medium') && allNamed) {
@@ -48,9 +49,10 @@ export function voiceProgression(chords: readonly SourceChord[], level: Level): 
     // Only use a capo when it really helps.
     const pick = best.capo > 0 && best.totalDifficulty + 2 <= plain.totalDifficulty ? best : plain;
     // Shapes are listed per distinct chord: look them up by the sounding name.
-    const byName = new Map(pick.shapes.map((sh) => [sh.original.display, sh]));
+    const keyOf = (c: Pick<ParsedChord, 'root' | 'quality' | 'bass'>) => `${c.root}|${c.quality}|${c.bass ?? ''}`;
+    const byKey = new Map(pick.shapes.map((sh) => [keyOf(sh.original), sh]));
     const voiced = (parsed as ParsedChord[]).map((p) => {
-      const sh = byName.get(p.display);
+      const sh = byKey.get(keyOf(p));
       return sh?.voicing ? fromVoicing(sh.voicing, sh.shapeName) : undefined;
     });
     pick.shapes.forEach((s) => s.simplified && notes.add(`${s.original.display} is played as an easier ${s.shapeName} shape (some notes left out).`));

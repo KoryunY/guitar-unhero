@@ -4,7 +4,7 @@ import { analysisPcm } from '../../audio/importAudio';
 import { isUnreviewedCandidate, type Score } from '../../domain/score';
 import { buildLevels, LEVEL_TEXT, LEVELS, partView, type Level, type LevelResult } from '../../domain/songArrange';
 import { analysisToSource } from '../../domain/fromAnalysis';
-import { practiceRightsIssue } from '../../domain/validate';
+import { practiceRightsIssue, validateScore } from '../../domain/validate';
 import { saveArrangement } from '../../storage/db';
 import type { AssetRecord, SongRecord, SongVersionRef } from '../../storage/types';
 import { AnchorTimeMap } from '../../transport/timemap';
@@ -25,10 +25,14 @@ export async function saveLevels(song: SongRecord, results: LevelResult[], note:
   for (const r of results) {
     const prev = song.versions.filter((v) => v.arrangementId === r.score.arrangementId).length;
     const score: Score = { ...r.score, version: prev + 1, parent: prev ? { arrangementId: r.score.arrangementId, version: prev } : null };
+    // Never store a level that does not validate (e.g. nothing was found).
+    const check = validateScore(JSON.parse(JSON.stringify(score)));
+    if (!check.ok) continue;
     await saveArrangement(score);
     versions.push({ arrangementId: score.arrangementId, version: score.version, role: score.role, title: score.title, createdAt: new Date().toISOString(), note });
     levels[r.level] = { arrangementId: score.arrangementId, version: score.version };
   }
+  if (!Object.keys(levels).length) throw new Error('Nothing playable was found.');
   return { ...song, versions, levels, mainArrangementId: levels.full?.arrangementId ?? song.mainArrangementId, updatedAt: new Date().toISOString() };
 }
 
@@ -58,8 +62,9 @@ export function LevelPlay({ song, scores, buffer, onReview }: { song: SongRecord
   const joke = useJoke('song_imported', song.title.length);
   const [reviewing, setReviewing] = useState(false);
   const [section, setSection] = useState<number>(-1);
-  if (!score) return <Callout kind="info">No playable version yet.</Callout>;
-  const view = partView(score, effectivePart);
+  // Memoised: a new object every render would rebuild the player and restart playback.
+  const view = useMemo(() => (score ? partView(score, effectivePart) : null), [score, effectivePart]);
+  if (!score || !view) return <Callout kind="info">No playable version yet.</Callout>;
   const candidate = isUnreviewedCandidate(score);
   const rightsIssue = practiceRightsIssue(score);
   const unique = new Map<string, NonNullable<Score['chords']>[number]>();
@@ -148,7 +153,7 @@ export function AnalyzeView({ song, asset, buffer, onDone }: { song: SongRecord;
     setError(null);
     setState({ fraction: 0, stage: 'Preparing' });
     try {
-      const pcm = await analysisPcm(buffer);
+      const { pcm, sampleRate } = await analysisPcm(buffer);
       const w = new Worker(new URL('../../audio/song/analysis.worker.ts', import.meta.url), { type: 'module' });
       workerRef.current = w;
       const analysis = await new Promise<SongAnalysis>((resolve, reject) => {
@@ -160,7 +165,7 @@ export function AnalyzeView({ song, asset, buffer, onDone }: { song: SongRecord;
         };
         w.onerror = (e) => reject(new Error(e.message || 'Analysis failed'));
         const copy = pcm.slice();
-        w.postMessage({ type: 'analyze', pcm: copy, sampleRate: 22050 }, [copy.buffer]);
+        w.postMessage({ type: 'analyze', pcm: copy, sampleRate }, [copy.buffer]);
       });
       w.terminate();
       workerRef.current = null;
@@ -174,7 +179,8 @@ export function AnalyzeView({ song, asset, buffer, onDone }: { song: SongRecord;
         providerId: ANALYZER_ID,
         providerVersion: ANALYZER_VERSION,
       });
-      const levels = buildLevels(source);
+      const levels = buildLevels(source).filter((l) => l.score.events.length || l.score.chords?.length);
+      if (!levels.length) throw new Error('no clear beat, chords or tune were found in this recording. Try a song with a steady beat and clear chords, or paste a chord sheet instead.');
       let next = await saveLevels(song, levels, 'Worked out from the recording (unreviewed)');
       const keyName = `${['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'][analysis.key.tonic]} ${analysis.key.mode}`;
       next = {

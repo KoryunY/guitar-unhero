@@ -134,7 +134,8 @@ function melodyFor(level: Level, line: SourceNote[], capo: number, log: Transfor
   if (shifted) log.push({ kind: 'octave_shift', description: `Moved ${shifted} note(s) by an octave (key unchanged).`, sourceEventIds: [], resultEventIds: [] });
   if (!fit.length) return [];
   // Keep a given string/fret when it fits this level, else plan fingering.
-  const given = fit.every((n) => n.string && n.fret !== undefined && n.fret - capo >= profile.minFret && n.fret - capo <= profile.maxFret && level === 'full' && capo === 0);
+  // Keep the source's own positions only when they really sound the written pitch (not harmonics etc.).
+  const given = fit.every((n) => n.string && n.fret !== undefined && n.fret - capo >= profile.minFret && n.fret - capo <= profile.maxFret && level === 'full' && capo === 0 && fretToMidi(n.string, n.fret) === n.midi);
   let positions: { string: 1 | 2 | 3 | 4 | 5 | 6; fret: number; finger: NoteEvent['finger'] }[];
   if (given) {
     positions = fit.map((n) => ({ string: n.string!, fret: n.fret!, finger: n.fret === 0 ? null : (Math.min(4, Math.max(1, ((n.fret! - 1) % 4) + 1)) as 1 | 2 | 3 | 4) }));
@@ -199,7 +200,8 @@ export function tidyChords(chords: readonly SourceChord[], durationTicks: number
     if (prev && prev.durationTicks <= 0) out.pop();
     out.push({ ...c, durationTicks: Math.min(c.durationTicks, durationTicks - c.startTick) });
   }
-  return out.filter((c) => c.durationTicks > 0);
+  // Merges can extend a chord: clip everything to the song.
+  return out.map((c) => ({ ...c, durationTicks: Math.min(c.durationTicks, durationTicks - c.startTick) })).filter((c) => c.durationTicks > 0);
 }
 
 export function buildLevels(src: SongSource): LevelResult[] {

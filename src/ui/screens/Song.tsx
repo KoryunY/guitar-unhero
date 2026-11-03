@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { engine, type Handle } from '../../audio/engine';
 import { decodeBlobForPlayback, decodeImport, IMPORT_FAILURE_TEXT, MAX_IMPORT_SECONDS, monoMix, waveformPeaks } from '../../audio/importAudio';
 import { buildCandidate, estimateTempo, quantize, type RawTranscription } from '../../audio/transcribe';
-import type { Rights, Score } from '../../domain/score';
+import { isUnreviewedCandidate, type Rights, type Score } from '../../domain/score';
 import { blankScore, commitVersion, setTempo } from '../../domain/edit';
 import { derive, LEVEL_INFO, type DerivationLevel } from '../../domain/arrange';
 import { anchorsFromFit, checkAnchors, fitTaps, type TapFit } from '../../domain/alignment';
@@ -95,6 +95,7 @@ function NewSong() {
           sampleRate: r.value.buffer.sampleRate, channels: r.value.buffer.numberOfChannels, sha256: r.value.sha256, createdAt: now, rights, blob: file,
         };
         await saveAsset(asset);
+        bufferCache.clear(); // keep one decoded song in memory at a time
         bufferCache.set(asset.id, r.value.buffer);
         song.assetId = asset.id;
         song.source = 'recording';
@@ -233,6 +234,7 @@ function SongWorkspace({ songId, view }: { songId: string; view: string }) {
           try {
             const ctx = await engine.ensureContext();
             b = await decodeBlobForPlayback(ctx, a.blob);
+            bufferCache.clear(); // keep one decoded song in memory at a time
             bufferCache.set(a.id, b);
           } catch {
             setError('The saved recording could not be decoded in this browser.');
@@ -265,7 +267,11 @@ function SongWorkspace({ songId, view }: { songId: string; view: string }) {
     await saveArrangement(score);
     const ref: SongVersionRef = { arrangementId: score.arrangementId, version: score.version, role: score.role, title: score.title, createdAt: new Date().toISOString(), note };
     setScores((m) => new Map(m).set(`${score.arrangementId}@${score.version}`, score));
-    await update({ versions: [...cur.versions, ref], mainArrangementId: main ? score.arrangementId : cur.mainArrangementId });
+    // Edits to a level (e.g. "Fix notes" on the full level) become that level's current version.
+    const levels = cur.levels && score.arrangementLevel && cur.levels[score.arrangementLevel]?.arrangementId === score.arrangementId
+      ? { ...cur.levels, [score.arrangementLevel]: { arrangementId: score.arrangementId, version: score.version } }
+      : cur.levels;
+    await update({ versions: [...cur.versions, ref], mainArrangementId: main ? score.arrangementId : cur.mainArrangementId, ...(levels ? { levels } : {}) });
   };
 
   if (song === undefined) return <p className="muted">Loading…</p>;
@@ -360,7 +366,7 @@ function PlayView({ song, scores, buffer }: { song: SongRecord; scores: Map<stri
       </div>
     );
   }
-  const candidate = score.role === 'transcription_candidate' && score.provenance.reviewStatus === 'unreviewed';
+  const candidate = isUnreviewedCandidate(score);
   const rightsIssue = practiceRightsIssue(score);
   // An easy version derived from the main part keeps its timing, so the recording still lines up.
   const usesRecording = map && (score.arrangementId === song.mainArrangementId || score.parent?.arrangementId === song.mainArrangementId);
@@ -402,11 +408,11 @@ function NotesView({ song, main, buffer, asset, onCreate }: { song: SongRecord; 
       </div>
     );
   }
-  const candidate = main.role === 'transcription_candidate' && main.provenance.reviewStatus === 'unreviewed';
+  const candidate = isUnreviewedCandidate(main);
   const save = async (s: Score, reviewed = false) => {
     setSaving(true);
     let next = commitVersion(main, s, { kind: 'manual_edit', description: reviewed ? 'Reviewed and corrected by the learner' : 'Edited in the notes grid', sourceEventIds: main.events.map((e) => e.id) });
-    if (reviewed) next = { ...next, role: 'reviewed_part', provenance: { ...next.provenance, reviewStatus: 'user_reviewed', reviewer: 'the learner (self-review)' } };
+    if (reviewed) next = { ...next, role: next.arrangementLevel && next.arrangementLevel !== 'full' ? 'simplified_arrangement' : 'reviewed_part', provenance: { ...next.provenance, reviewStatus: 'user_reviewed', reviewer: 'the learner (self-review)' } };
     const v = validateScore(JSON.parse(JSON.stringify(next)));
     if (!v.ok) {
       setMsg(`Not saved: ${v.issues[0]!.message}`);

@@ -171,3 +171,68 @@ describe('audio analysis → song source', () => {
     }
   });
 });
+
+import { derive } from '../../src/domain/arrange';
+import { importedToSource } from '../../src/domain/fromImport';
+import { voiceProgression } from '../../src/domain/voicing';
+import { isChordLine } from '../../src/domain/importers/chordSheet';
+import { blankScore } from '../../src/domain/edit';
+import type { ImportedSong } from '../../src/domain/importers/types';
+
+describe('review fixes (any-song integration)', () => {
+  it('an easy version derived from an unreviewed transcription is still never assessed', () => {
+    const base = blankScore({ arrangementId: 'cand', title: 'c', bpm: 80, bars: 1, rights });
+    const cand = { ...base, role: 'transcription_candidate' as const, provenance: { ...base.provenance, method: 'model_candidate' as const },
+      events: [{ id: 'n1', kind: 'note' as const, startTick: 0, durationTicks: 960, pitchMidi: 64, string: 1 as const, fret: 0, finger: null, sourceEventIds: [], assessment: { pitch: true, attack: true, sustain: false as const } }] };
+    const d = derive(cand, 'easy-melody');
+    expect(d.ok).toBe(true);
+    expect(isUnreviewedCandidate(d.score!)).toBe(true);
+  });
+
+  const tabSong = (standard: boolean): ImportedSong => ({
+    source: 'tab', title: null, artist: null, ppq: 960, bpm: 90, beatsPerBar: 4, beatUnit: 4, durationTicks: 3840,
+    notes: [0, 1, 2, 3, 4, 5].map((i) => ({ startTick: 0, durationTicks: 1920, midi: [63, 58, 54, 51, 46, 39][i]!, string: (i + 1) as 1, fret: [0, 0, 1, 2, 2, 0][i]! })),
+    chords: [{ startTick: 1920, durationTicks: 1920, name: 'Eb', fretsByString: [0, 0, 0, 2, 2, 0] }],
+    sections: [], tuning: { name: standard ? 'standard' : 'half-step down', openMidiByString: [63, 58, 54, 49, 44, 39], standard }, capo: 0, warnings: [],
+  });
+
+  it('shapes from a tab in another tuning are not replayed in standard tuning', () => {
+    const { source } = importedToSource(tabSong(false), { arrangementId: 'x', title: 'x', rights, createdBy: 't' });
+    expect(source.chords.every((c) => !c.fretsByString)).toBe(true);
+    expect(source.chords.map((c) => c.name)).toEqual(['Eb']);
+    // The simultaneous notes keep their sounding pitches (no standard-tuning shape).
+    expect(source.notes.length).toBeGreaterThan(0);
+  });
+
+  it('A# and Bb are the same chord when choosing easy shapes', () => {
+    const v = voiceProgression(['A#', 'F', 'Bb', 'F'].map((name, i) => ({ startTick: i * 3840, durationTicks: 3840, name })), 'easy');
+    expect(v.voiced.every(Boolean)).toBe(true);
+    expect(v.voiced[0]!.frets).toEqual(v.voiced[2]!.frets);
+  });
+
+  it('a harmonic written at fret 7 is not given the fretted pitch as its target', () => {
+    const ls = buildLevels(source({ chords: [], notes: [{ startTick: 0, durationTicks: 960, midi: 74, string: 3, fret: 7, techniques: [{ kind: 'harmonic' }] }] }));
+    const full = ls.find((l) => l.level === 'full')!;
+    expect(full.score.events[0]!.pitchMidi).toBe(74);
+  });
+
+  it('merged chords never run past the end of the song', () => {
+    const t = tidyChords([{ startTick: 0, durationTicks: 3840, name: 'C' }, { startTick: 3840, durationTicks: 9000, name: 'C' }], 7680);
+    expect(t).toEqual([{ startTick: 0, durationTicks: 7680, name: 'C' }]);
+  });
+
+  it('a "Tuning:" line in a tab is not read as chords', () => {
+    expect(isChordLine('Tuning: Eb Ab Db Gb Bb Eb')).toBe(false);
+    expect(isChordLine('Eb   Ab   Db')).toBe(true);
+  });
+
+  it('fret range is checked above the capo', () => {
+    const l = buildLevels(source())[0]!;
+    const s = JSON.parse(JSON.stringify(l.score));
+    s.instrument.maxFret = 4;
+    s.instrument.capo = 3;
+    s.events = [];
+    s.chords = [{ id: 'c1', startTick: 0, durationTicks: 960, name: 'X', frets: [3, null, null, null, null, null], pattern: null }];
+    expect(validateScore(s).issues.map((i) => i.code)).toContain('semantic.fret_range');
+  });
+});

@@ -42,3 +42,32 @@ describe('WSOLA time-stretch', () => {
     expect(ms).toBeLessThan(20000);
   });
 });
+
+describe('stretched copies stay in time with the beat', () => {
+  for (const rate of [0.5, 0.75]) {
+    it(`clicks at t land at t / ${rate} (energy centroid within ±6 ms)`, () => {
+      const x = new Float32Array(SR * 6);
+      const onsets = [0.5, 1.25, 2.0, 2.75, 3.5, 4.1, 4.9, 5.3];
+      for (const t of onsets) {
+        const i0 = Math.round(t * SR);
+        for (let i = 0; i < 400; i++) x[i0 + i] = Math.sin(i * 0.3) * Math.exp(-i / 120);
+      }
+      const centroid = (a: Float32Array, from: number, to: number) => {
+        let e = 0, et = 0;
+        for (let i = from; i < to; i++) { const v = a[i]! * a[i]!; e += v; et += v * i; }
+        return et / e;
+      };
+      // The click's own energy centre, stretched, is where it should land.
+      const ref = (centroid(x, Math.round(0.5 * SR) - 1000, Math.round(0.5 * SR) + 3000) / SR - 0.5) / rate;
+      const y = timeStretch(x, SR, rate);
+      const errs = onsets.map((t) => {
+        const expected = t / rate;
+        const c = centroid(y, Math.round((expected - 0.08) * SR), Math.round((expected + 0.08) * SR)) / SR;
+        return (c - expected - ref) * 1000;
+      });
+      const mean = errs.reduce((a, b) => a + b, 0) / errs.length;
+      expect(Math.abs(mean), `mean ${mean.toFixed(1)} ms; ${errs.map((e) => e.toFixed(1)).join(' ')}`).toBeLessThan(6);
+      for (const e of errs) expect(Math.abs(e)).toBeLessThan(15);
+    });
+  }
+});

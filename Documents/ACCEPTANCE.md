@@ -6,7 +6,7 @@ Status values: **passed**, **failed**, **not run**, **pending hardware**, **part
 
 ## Commands and results
 ```
-pnpm check        # tsc + vitest: 313 passed + build
+pnpm check        # tsc + vitest: 323 passed + build
 pnpm test:e2e     # playwright: 35 passed (ui, a11y incl. song levels, m2, any-song, m3–m5, real-pipeline)
 pnpm test:recordings  # "no recordings" until real clips are added
 ```
@@ -88,3 +88,20 @@ pnpm test:recordings  # "no recordings" until real clips are added
 - **Audio/assessment (13):** all applied — phantom notes from clicks over ringing strings, calibration blocked by click filter, digital silence = good input, analysis-lag misses, YIN threshold mismatch, latency mapping, tuner lock carry-over/unstable lock, wait-mode early grace, weak flux first attempts, click/pluck onset bias, calibration across output devices, loop-wrap window overlap, demo block truncation. Not done: worklet buffer reuse (minor), cross-correlation leakage detection for mis-declared headphones (future).
 - **Teacher (≈21 + 5 lessons):** all wording/sequence changes and the five suggested lessons applied; feedback F1–F7 applied.
 - **UX/mobile:** IA, tab bar/rail, focus mode, palette, type, components, copy changes, Advanced switch, wake lock, results card applied. Not done: landscape side-rail transport layout (uses compact sizing instead), auto-advance after tuning only in string mode.
+
+## 1.0 code review (independent agent) and disposition
+| Finding | Severity | Disposition |
+|---|---|---|
+| Easy version derived from an unreviewed transcription was assessable | invariant | **fixed**: derived versions keep `model_candidate`; all screens use `isUnreviewedCandidate` (test) |
+| Tab chord shapes in non-standard tunings replayed in standard tuning (E instead of E♭) | invariant | **fixed**: shapes only from standard-tuning tabs; named chords drop shapes otherwise (test) |
+| 15-min analysed songs: scheduler ~19 ms per call (linear anchor search, full scans) | bug | **fixed**: binary-search time map, precomputed event/strum times, window-only scan (test: < 2 ms) |
+| Chords part rebuilt the player on every render (playback restarted) | bug | **fixed**: memoised part view |
+| "Fix notes" edits did not update the level shown in Play | bug | **fixed**: new versions of a level become that level's current version |
+| A#/B♭ spelled differently → one became a rest in Easy/Medium | bug | **fixed**: shapes looked up by root/quality/bass (test) |
+| Slowed backing ~24 ms early at 50 % | bug | **fixed**: centre-aligned frames + measured lead compensation; energy-centroid test within ±6 ms at 50/75 % |
+| Harmonics scored at the fretted pitch in Full | bug | **fixed**: source positions used only when they sound the written pitch (test) |
+| Empty/invalid levels saved ("Your song is ready" with nothing) | bug | **fixed**: levels validated before saving; "nothing clear found" message; merged chords clipped (test) |
+| Analysis sample-rate fallback mislabelled | latent bug | **fixed**: `analysisPcm` returns its rate |
+| Memory: decoding before the length check; extra copies of stretched audio; caches never released | risk | **fixed**: duration probed from metadata first; no extra copies; one slowed copy and one decoded song kept; no stretching when the backing is off |
+| Stretched copy ready mid-play not used until next play | risk | **documented** in the notice ("joins the next time you press play") |
+| Capo ignored in fret-range check; chord fingers on open strings; highway beat lines/tails with drifting tempo; "Tuning:" tab line read as chords; "Practise again" for songs; streak in UTC days | minor | **fixed** |

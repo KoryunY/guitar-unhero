@@ -92,6 +92,8 @@ function isSectionText(text: string): boolean {
 
 /** True when a line is made (mostly) of chord symbols. */
 export function isChordLine(line: string): boolean {
+  // "Tuning: Eb Ab Db Gb Bb Eb" / "Capo: 2" / "Key: Bb" are settings, not chords.
+  if (/^\s*(tuning|capo|key|tempo|bpm)\b/i.test(line)) return false;
   const tokens = tokenize(line);
   if (!tokens.length) return false;
   let chordish = 0;

@@ -67,10 +67,11 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
       g.fillStyle = 'rgba(0,0,0,0.35)';
       g.fillRect(leftHanded ? W - labelW : 0, 0, labelW, H);
       // Beat / bar lines.
-      const firstBeat = Math.floor((pos - (hitFrac * playW) / pps) / t.beatSec) - 1;
-      const lastBeat = Math.ceil((pos + lookaheadSec * t.rate) / t.beatSec) + 1;
+      // Beat lines follow the tempo map (aligned songs: tick 0 is not at 0 s and tempo drifts).
+      const firstBeat = Math.floor(t.secToTick(pos - (hitFrac * playW) / pps) / 960) - 1;
+      const lastBeat = Math.ceil(t.secToTick(pos + lookaheadSec * t.rate) / 960) + 1;
       for (let k = Math.max(0, firstBeat); k <= lastBeat; k++) {
-        const s = k * t.beatSec;
+        const s = t.tickToSec(k * 960);
         if (s > t.durationSec + 1e-9) break;
         const x = xOf(s);
         if (x < playL || x > playR) continue;
@@ -125,7 +126,7 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, c
         // From memory: upcoming notes are hidden; judged notes are shown after the fact.
         if (cueLevel === 'none' && s > pos - 1e-6 && !controller.judgmentByNote.get(`${t.loopIteration}:${ev.id}`)) continue;
         const x = xOf(s);
-        const dur = t.tickToSec(ev.durationTicks) * pps;
+        const dur = (t.tickToSec(ev.startTick + ev.durationTicks) - s) * pps;
         const tailEnd = leftHanded ? x - dur : x + dur;
         if (Math.max(x, tailEnd) < playL - 40 || Math.min(x, tailEnd) > playR + 40) continue;
         const y = top + (ev.string - 1) * laneH + laneH / 2;

@@ -54,22 +54,41 @@ async function decodeForPlayback(fallback: BaseAudioContext, data: ArrayBuffer):
   return mono;
 }
 
+/** Duration from the browser's media metadata, without decoding (null when unknown). */
+async function probeDuration(file: Blob): Promise<number | null> {
+  if (typeof Audio === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return null;
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise<number | null>((resolve) => {
+      const a = new Audio();
+      const done = (v: number | null) => { a.removeAttribute('src'); resolve(v); };
+      const timer = setTimeout(() => done(null), 4000);
+      a.preload = 'metadata';
+      a.onloadedmetadata = () => { clearTimeout(timer); done(Number.isFinite(a.duration) ? a.duration : null); };
+      a.onerror = () => { clearTimeout(timer); done(null); };
+      a.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 /** Decode a stored song file for playback (same memory-saving path as import). */
 export async function decodeBlobForPlayback(ctx: BaseAudioContext, blob: Blob): Promise<AudioBuffer> {
   return decodeForPlayback(ctx, await blob.arrayBuffer());
 }
 
 /** 22.05 kHz mono copy for song analysis (rendered, so it is properly low-pass filtered). */
-export async function analysisPcm(buffer: AudioBuffer): Promise<Float32Array> {
+export async function analysisPcm(buffer: AudioBuffer): Promise<{ pcm: Float32Array; sampleRate: number }> {
   const Off = (globalThis as { OfflineAudioContext?: typeof OfflineAudioContext }).OfflineAudioContext;
-  if (!Off || buffer.sampleRate === ANALYSIS_RATE) return monoMix(buffer);
+  if (!Off || buffer.sampleRate === ANALYSIS_RATE) return { pcm: monoMix(buffer), sampleRate: buffer.sampleRate };
   const off = new Off(1, Math.max(1, Math.ceil(buffer.duration * ANALYSIS_RATE)), ANALYSIS_RATE);
   const src = off.createBufferSource();
   src.buffer = buffer;
   src.connect(off.destination);
   src.start();
   const out = await off.startRendering();
-  return out.getChannelData(0);
+  return { pcm: out.getChannelData(0), sampleRate: ANALYSIS_RATE };
 }
 
 export async function decodeImport(ctx: BaseAudioContext, file: File): Promise<{ ok: true; value: DecodedImport } | { ok: false; reason: ImportFailure }> {
@@ -81,6 +100,9 @@ export async function decodeImport(ctx: BaseAudioContext, file: File): Promise<{
   } catch {
     return { ok: false, reason: 'internal_error' };
   }
+  // Refuse very long files before decoding them (a long low-bitrate MP3 would decode to gigabytes).
+  const probed = await probeDuration(file);
+  if (probed !== null && probed > MAX_IMPORT_SECONDS + 1) return { ok: false, reason: 'too_long' };
   const sha256 = await sha256Hex(data);
   let buffer: AudioBuffer;
   try {
