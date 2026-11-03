@@ -6,6 +6,8 @@ import { useApp } from '../AppContext';
 import { navigate, PageHead } from '../App';
 import { Icon } from '../icons';
 import { StageArt } from '../art';
+import { CHAPTERS } from '../../learning/chapters';
+import { findLesson } from '../../learning/lessons';
 
 const FEATURED = ['piece.morning-steps', 'exercise.first-two-strings'];
 
@@ -19,6 +21,14 @@ export function PracticeLibrary() {
   const lastFor = (id: string) => summaries.find((s) => s.arrangementId === id);
   const retained = lessons['lesson.first-piece.v1']?.skillState === 'retained';
   const ordered = [...BUNDLED_SCORES].sort((a, b) => (FEATURED.indexOf(b.arrangementId) + 1 || 0) - (FEATURED.indexOf(a.arrangementId) + 1 || 0));
+  // Group the bundled pieces by the chapter whose lessons use them.
+  const chapterFor = new Map<string, (typeof CHAPTERS)[number]>();
+  for (const c of CHAPTERS) for (const id of c.ids) for (const st of findLesson(id)?.steps ?? []) if (st.scoreRef && !chapterFor.has(st.scoreRef)) chapterFor.set(st.scoreRef, c);
+  const groups: { title: string; emoji: string; scores: typeof ordered }[] = [];
+  for (const c of [...CHAPTERS, null]) {
+    const list = ordered.filter((sc) => (chapterFor.get(sc.arrangementId) ?? null) === c);
+    if (list.length) groups.push({ title: c ? c.title : 'More pieces', emoji: c ? c.emoji : '🎵', scores: list });
+  }
 
   return (
     <section aria-label="Practice">
@@ -49,9 +59,11 @@ export function PracticeLibrary() {
           </div>
         </>
       )}
-      <div className="section-title">Pieces and exercises</div>
+      {groups.map((g) => (
+      <div key={g.title}>
+      <div className="section-title"><span aria-hidden="true">{g.emoji} </span>{g.title}</div>
       <div className="grid">
-        {ordered.map((s) => {
+        {g.scores.map((s) => {
           const last = lastFor(s.arrangementId);
           const bars = Math.round(s.durationTicks / 3840);
           return (
@@ -69,7 +81,8 @@ export function PracticeLibrary() {
           );
         })}
       </div>
-
+      </div>
+      ))}
     </section>
   );
 }
