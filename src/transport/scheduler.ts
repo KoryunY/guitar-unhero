@@ -43,8 +43,10 @@ export class Scheduler {
       this.handles.set(item.key, { item, handle });
       fresh.push(item);
     }
+    // Forget a handle only well after its sound has ended: a backing recording starts once
+    // and plays for the whole segment, and must still be stoppable on pause/seek/leave.
     for (const [key, v] of this.handles) {
-      if (v.item.contextTime < now - 5) this.handles.delete(key);
+      if ((v.item.endContextTime ?? v.item.contextTime) < now - 5) this.handles.delete(key);
     }
     return fresh;
   }

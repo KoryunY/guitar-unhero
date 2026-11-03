@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../Documents/original-exercise.gu-score.json';
+import { PracticeController } from '../../src/ui/practice/controller';
+import type { AudioEngine } from '../../src/audio/engine';
+import { SignalTimeline } from '../../src/assessment/timeline';
 import type { Score } from '../../src/domain/score';
 import { AnchorTimeMap, ConstantTempoMap } from '../../src/transport/timemap';
 import { Transport } from '../../src/transport/transport';
@@ -51,6 +54,60 @@ describe('time maps (TIME-02)', () => {
     expect(notes[1]!.contextTime - notes[0]!.contextTime).toBeCloseTo(1, 9);
     tr.setRate(0.5);
     expect(tr.scheduleWindow(0, 100).some((i) => i.kind === 'backing')).toBe(false);
+  });
+});
+
+describe('song backing playback', () => {
+  /** A controller driven by a fake engine and fake timers; returns the backing handles it created. */
+  function rig() {
+    const clock = { t: 10 };
+    let tickFn: (() => void) | null = null;
+    vi.stubGlobal('window', { setInterval: (fn: () => void) => { tickFn = fn; return 1; }, clearInterval: () => { tickFn = null; }, setTimeout: () => 0 });
+    vi.stubGlobal('document', { visibilityState: 'visible', addEventListener: () => {}, removeEventListener: () => {} });
+    const backings: { stopped: boolean }[] = [];
+    const engine = {
+      get now() { return clock.t; },
+      timeline: new SignalTimeline(),
+      analyzedUntil: 0,
+      on: () => () => {},
+      estimatedDeltaIO: () => 0,
+      ensureContext: async () => ({}),
+      playBacking: () => { const h = { stopped: false, stop: () => { h.stopped = true; } }; backings.push(h); return h; },
+      playClick: () => ({ stop: () => {} }),
+    } as unknown as AudioEngine;
+    const opts = { inputSource: 'none', outputRoute: 'speakers', guideOn: false, metronomeOn: false, deltaIO: null, simProfile: 'accurate', cueLevel: 'full', backingOn: true } as const;
+    const c = new PracticeController(fixture as Score, engine, opts, { mode: 'listen', rate: 1 }, { backing: { duration: 30 } as AudioBuffer });
+    c.transport.countInBeats = 0;
+    const run = (until: number) => {
+      while (clock.t < until) { tickFn?.(); clock.t = Math.round((clock.t + 0.025) * 1e9) / 1e9; }
+    };
+    return { c, run, backings };
+  }
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('pause stops the recording even after React disposed and restarted the controller', async () => {
+    const { c, run, backings } = rig();
+    c.start();
+    c.dispose(); // React development mode runs every effect twice
+    c.start();
+    await c.play();
+    run(17); // well past the scheduler's 5 s memory of old items
+    expect(backings).toHaveLength(1);
+    c.pause();
+    expect(backings[0]!.stopped).toBe(true);
+    await c.play();
+    run(18);
+    expect(backings.filter((b) => !b.stopped)).toHaveLength(1);
+  });
+
+  it('leaving the screen while playing stops the recording', async () => {
+    const { c, run, backings } = rig();
+    c.start();
+    await c.play();
+    run(17);
+    c.dispose();
+    expect(backings.every((b) => b.stopped)).toBe(true);
+    expect(c.transport.running).toBe(false);
   });
 });
 

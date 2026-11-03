@@ -87,19 +87,37 @@ export class PracticeController {
     const sink: OutputSink = { schedule: (item) => this.output(item) };
     this.scheduler = new Scheduler(this.transport, sink, () => engine.now);
     this.matcher = new FixedTempoMatcher(this.matchContext(), engine.timeline);
-    this.unsubs.push(
-      this.transport.subscribe((e) => {
-        if (e.type === 'stopAll') {
-          this.matcher.reset();
-          this.waitJudge.clear();
-          this.simQueue = [];
-        } else if (e.type === 'attempt') {
-          this.newAttempt();
-        } else if (e.type === 'loopWrap') {
-          this.onLoopWrap(e.loopIteration - 1);
-        }
+    // The transport and scheduler belong to this controller, so this subscription lives as long as it does.
+    this.transport.subscribe((e) => {
+      if (e.type === 'stopAll') {
+        this.matcher.reset();
+        this.waitJudge.clear();
+        this.simQueue = [];
+      } else if (e.type === 'attempt') {
+        this.newAttempt();
+      } else if (e.type === 'loopWrap') {
+        this.onLoopWrap(e.loopIteration - 1);
+      }
+      this.notify();
+    });
+  }
+
+  /**
+   * Engine and page listeners. start() attaches them and dispose() removes them, so a
+   * disposed controller can start again (React runs effects twice in development).
+   */
+  private attach(): void {
+    if (this.unsubs.length) return;
+    const engine = this.engine;
+    const onVis = () => {
+      if (document.visibilityState === 'hidden' && this.transport.running) {
+        this.transport.pause('hidden');
+        this.feedback = 'Paused while the tab was in the background.';
         this.notify();
-      }),
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    this.unsubs.push(
       engine.on('attack', (a) => this.onAttack(a)),
       engine.on('deviceLost', () => {
         if (this.opts.inputSource === 'microphone') {
@@ -115,16 +133,8 @@ export class PracticeController {
           this.notify();
         }
       }),
+      () => document.removeEventListener('visibilitychange', onVis),
     );
-    const onVis = () => {
-      if (document.visibilityState === 'hidden' && this.transport.running) {
-        this.transport.pause('hidden');
-        this.feedback = 'Paused while the tab was in the background.';
-        this.notify();
-      }
-    };
-    document.addEventListener('visibilitychange', onVis);
-    this.unsubs.push(() => document.removeEventListener('visibilitychange', onVis));
   }
 
   // ---------------- observers ----------------
@@ -177,14 +187,17 @@ export class PracticeController {
 
   // ---------------- lifecycle ----------------
   start(): void {
+    this.attach();
     if (this.timer !== null) return;
     this.timer = window.setInterval(() => this.tick(), 25);
   }
 
+  /** Leaving the screen: pause, and silence everything still sounding (backing recording, guide, clicks). */
   dispose(): void {
     if (this.timer !== null) window.clearInterval(this.timer);
     this.timer = null;
-    this.scheduler.dispose();
+    this.transport.pause('dispose');
+    this.scheduler.stopAll();
     this.unsubs.forEach((u) => u());
     this.unsubs = [];
     this.listeners.clear();

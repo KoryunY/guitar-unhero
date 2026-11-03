@@ -181,6 +181,29 @@ describe('transport and scheduler', () => {
     expect(transport.state).toBe('countIn');
   });
 
+  it('a backing recording that started long ago is still stopped on pause, seek and dispose', () => {
+    for (const action of ['pause', 'seek', 'dispose'] as const) {
+      const { transport, scheduler, run, log } = setup({ countIn: 0 });
+      transport.backingEnabled = true;
+      transport.play();
+      run(17); // 7 s into the piece: the backing item is older than the scheduler's 5 s memory
+      const backing = log.filter((r) => r.item.kind === 'backing');
+      expect(backing).toHaveLength(1);
+      expect(backing[0]!.stopped).toBe(false);
+      if (action === 'pause') transport.pause();
+      else if (action === 'seek') transport.seek(0);
+      else scheduler.dispose();
+      expect(backing[0]!.stopped).toBe(true);
+      // Resuming starts exactly one new copy, never a second one on top of the old.
+      if (action !== 'dispose') {
+        if (!transport.running) transport.play();
+        run(19);
+        const live = log.filter((r) => r.item.kind === 'backing' && !r.stopped);
+        expect(live).toHaveLength(1);
+      }
+    }
+  });
+
   it('draws count-in approach positions before s0 and clamps at segment end', () => {
     const { transport, clock, run } = setup();
     transport.play();
