@@ -173,3 +173,28 @@ test('no network requests other than the app itself during practice (AC-21)', as
   await page.waitForTimeout(6000);
   expect(foreign).toEqual([]);
 });
+
+test('an interrupted AudioContext pauses practice and requires Play with a count-in (AC-17)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const Orig = window.AudioContext;
+    // Keep a reference to every context so the test can suspend it like the OS would.
+    window.AudioContext = class extends Orig {
+      constructor(o?: AudioContextOptions) {
+        super(o);
+        (window as unknown as { __ctxs: AudioContext[] }).__ctxs = [...((window as unknown as { __ctxs?: AudioContext[] }).__ctxs ?? []), this];
+      }
+    } as typeof AudioContext;
+  });
+  await freshStart(page);
+  await page.getByRole('button', { name: 'Continue without listening' }).click();
+  await page.goto('/#/practice/exercise.first-two-strings');
+  await page.getByLabel('Fixed tempo').check();
+  await page.getByLabel('100%').check();
+  await page.getByTestId('play-pause').click();
+  await expect(page.getByTestId('transport-state')).toHaveText('Playing', { timeout: 10_000 });
+  await page.evaluate(() => (window as unknown as { __ctxs: AudioContext[] }).__ctxs.at(-1)!.suspend());
+  await expect(page.getByTestId('transport-state')).toHaveText('Paused');
+  await expect(page.getByTestId('feedback')).toContainText('Audio was interrupted');
+  await page.getByTestId('play-pause').click();
+  await expect(page.getByTestId('transport-state')).toHaveText(/Count-in/);
+});

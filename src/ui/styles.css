@@ -4,13 +4,14 @@
   --ink: #1d1f24;
   --muted: #5b6070;
   --line: #d9d5cc;
-  --accent: #1f6feb;
+  --accent: #1558c7;
   --accent-ink: #ffffff;
   --good: #1a7f37;
   --bad: #b42318;
   --unsure: #8a5a00;
   --na: #6b7280;
   --sim: #7a2fb5;
+  --sim-bg: #6a1fa8;
   --focus: #ff9f1c;
   --lane: #efece4;
   --lane-alt: #e7e3d8;
@@ -50,6 +51,7 @@
   --bad: #ff6b6b;
   --unsure: #ffd400;
   --na: #d0d0d0;
+  --sim: #e6b3ff;
   --lane: #111;
   --lane-alt: #000;
 }
@@ -78,7 +80,7 @@ nav.main-nav a[aria-current='page'] { background: var(--accent); color: var(--ac
 .pill.sim { border-color: var(--sim); color: var(--sim); font-weight: 700; }
 
 .sim-banner {
-  background: var(--sim); color: #fff; padding: 8px 16px; font-weight: 700; text-align: center;
+  background: var(--sim-bg); color: #fff; padding: 8px 16px; font-weight: 700; text-align: center;
 }
 main { max-width: 1180px; margin: 0 auto; padding: 16px; }
 h1 { font-size: 1.6rem; margin: 0.2em 0 0.5em; }
@@ -153,3 +155,4 @@ table.events tr.next td { font-weight: 700; }
   .highway-wrap canvas { height: 240px; }
   .tuner-note { font-size: 3rem; }
 }
+button[aria-pressed='true'] .muted, button.primary .muted, .dot.current .muted { color: inherit; }

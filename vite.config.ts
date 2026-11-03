@@ -5,13 +5,13 @@ import react from '@vitejs/plugin-react';
 /**
  * Production-only Content Security Policy. The dev server needs inline module
  * preambles for React refresh, so the policy is injected only into built HTML.
- * 'unsafe-eval' is required because Ajv compiles the score schema at runtime
- * (see Documents/DECISIONS.md, D-07).
+ * JSON Schema validators are precompiled (scripts/gen-validators.mjs), so no
+ * 'unsafe-eval' is needed.
  */
 function productionCsp(): Plugin {
   const policy = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval'",
+    "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "worker-src 'self' blob:",

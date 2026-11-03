@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { engine } from '../audio/engine';
 import { useApp } from './AppContext';
 import { Home } from './screens/Home';
-import { Setup } from './screens/Setup';
-import { TunerScreen } from './screens/Tuner';
-import { Learn } from './screens/Learn';
-import { PracticeScreen } from './screens/Practice';
-import { DataScreen } from './screens/Data';
+// Screens load on demand so the first paint stays small.
+const Setup = lazy(() => import('./screens/Setup').then((m) => ({ default: m.Setup })));
+const TunerScreen = lazy(() => import('./screens/Tuner').then((m) => ({ default: m.TunerScreen })));
+const Learn = lazy(() => import('./screens/Learn').then((m) => ({ default: m.Learn })));
+const PracticeScreen = lazy(() => import('./screens/Practice').then((m) => ({ default: m.PracticeScreen })));
+const DataScreen = lazy(() => import('./screens/Data').then((m) => ({ default: m.DataScreen })));
 
 export type Route = { name: 'home' | 'setup' | 'tuner' | 'learn' | 'practice' | 'data'; arg: string | null };
 
@@ -82,14 +83,14 @@ export function App() {
       {storageError && <div className="callout bad" role="alert" style={{ margin: 8 }}>{storageError}</div>}
       <main id="main" tabIndex={-1}>
         {!ready ? <p>Loading…</p> : (
-          <>
+          <Suspense fallback={<p>Loading…</p>}>
             {route.name === 'home' && <Home />}
             {route.name === 'setup' && <Setup />}
             {route.name === 'tuner' && <TunerScreen />}
             {route.name === 'learn' && <Learn lessonId={route.arg} />}
             {route.name === 'practice' && <PracticeScreen arrangementId={route.arg} />}
             {route.name === 'data' && <DataScreen />}
-          </>
+          </Suspense>
         )}
       </main>
     </>

@@ -2,9 +2,8 @@
  * gu-score/1 validation = JSON Schema (Draft 2020-12, formats enabled) + semantic checks.
  * Unknown properties and unsupported features are rejected, never silently dropped.
  */
-import Ajv2020, { type ErrorObject } from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
-import schema from '../../Documents/gu-score-v1.schema.json';
+import type { ErrorObject } from 'ajv';
+import { validateScoreSchema } from '../generated/validators.js';
 import type { Score } from './score';
 import { fretToMidi, isStringNumber } from './tuning';
 
@@ -20,17 +19,12 @@ export type ValidationResult =
 
 export const MAX_SCORE_BYTES = 2 * 1024 * 1024;
 
-let compiled: ReturnType<Ajv2020['compile']> | null = null;
-
+/**
+ * Precompiled (scripts/gen-validators.mjs) from Documents/gu-score-v1.schema.json
+ * with Draft 2020-12 and date-time format checks enabled. No runtime eval.
+ */
 function getSchemaValidator() {
-  if (!compiled) {
-    // strict:false because the supplied schema uses `description` next to `const`
-    // and if/then without explicit types; formats are explicitly enabled.
-    const ajv = new Ajv2020({ allErrors: true, strict: false, validateFormats: true });
-    addFormats(ajv);
-    compiled = ajv.compile(schema);
-  }
-  return compiled;
+  return validateScoreSchema;
 }
 
 const HINTS: Record<string, string> = {

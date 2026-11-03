@@ -87,3 +87,12 @@ describe('gu-score/1 validation', () => {
     expect(validateScore(s).issues[0]!.code).toBe('json.non_finite');
   });
 });
+
+import { readFileSync } from 'node:fs';
+describe('precompiled validators', () => {
+  it('src/generated/validators.js is up to date with the schemas', async () => {
+    // @ts-expect-error untyped script module
+    const { generate } = await import('../../scripts/gen-validators.mjs');
+    expect(readFileSync(new URL('../../src/generated/validators.js', import.meta.url), 'utf8')).toBe(generate());
+  });
+});
