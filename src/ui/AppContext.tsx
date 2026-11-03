@@ -4,7 +4,8 @@ import type { MicState } from '../audio/mic';
 import { calibrationValid } from '../audio/calibration';
 import { clearStores, loadLessons, loadSettings, loadSummaries, replaceAll, saveLesson, saveSettings, saveSummary } from '../storage/db';
 import { DEFAULT_SETTINGS, type Evidence, type LessonProgress, type PracticeSummaryRecord, type Settings } from '../storage/types';
-import { findLesson } from '../learning/lessons';
+import { findLesson, LESSONS } from '../learning/lessons';
+import { retentionCheck, type RetentionResult } from '../learning/retention';
 
 interface AppApi {
   ready: boolean;
@@ -16,7 +17,7 @@ interface AppApi {
   updateSettings(patch: Partial<Settings>): void;
   recordStep(lessonId: string, stepId: string, evidence: Evidence): void;
   completeLesson(lessonId: string, evidence: Evidence): void;
-  addSummary(s: PracticeSummaryRecord): void;
+  addSummary(s: PracticeSummaryRecord): RetentionResult;
   deleteData(which: { progress: boolean; summaries: boolean; settings: boolean }): Promise<void>;
   importData(settings: Settings, lessons: LessonProgress[], summaries: PracticeSummaryRecord[]): Promise<void>;
   /** Valid combined output→input offset in seconds, or null. */
@@ -131,14 +132,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       completedAt: p.completedAt ?? new Date().toISOString(),
       completionEvidence: ev,
       // Only sensor evidence can mark a skill demonstrated; retention needs a later recall attempt (M2).
-      skillState: ev === 'sensor' ? 'demonstrated' : 'practicing',
+      skillState: p.skillState === 'retained' ? 'retained' : ev === 'sensor' ? 'demonstrated' : 'practicing',
     });
   }, [writeLesson]);
 
-  const addSummary = useCallback((s: PracticeSummaryRecord) => {
+  const summariesRef = useRef(summaries);
+  summariesRef.current = summaries;
+  const addSummary = useCallback((s: PracticeSummaryRecord): RetentionResult => {
+    const result = retentionCheck(s, summariesRef.current);
     setSummaries((prev) => [s, ...prev]);
     saveSummary(s).then(() => setStorageError(null), fail('practice summary'));
-  }, []);
+    if (result === 'retained') {
+      for (const l of LESSONS.filter((x) => x.scoreRef === s.arrangementId)) {
+        const p = lessonsRef.current[l.lessonId] ?? base(l.lessonId);
+        writeLesson({ ...p, skillState: 'retained', retainedAt: s.finishedAt });
+      }
+    }
+    return result;
+  }, [writeLesson]);
 
   const deleteData = useCallback(async (which: { progress: boolean; summaries: boolean; settings: boolean }) => {
     const stores = [...(which.progress ? (['lessons'] as const) : []), ...(which.summaries ? (['summaries'] as const) : []), ...(which.settings ? (['settings'] as const) : [])];

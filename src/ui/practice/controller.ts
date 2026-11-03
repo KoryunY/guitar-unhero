@@ -19,6 +19,7 @@ import { midiName, pitchClassName } from '../../domain/tuning';
 import type { OutputRoute, PracticeSummaryRecord } from '../../storage/types';
 
 export type SimProfile = 'accurate' | 'mixed' | 'silent';
+export type CueLevel = 'full' | 'reduced' | 'none';
 
 export interface PracticeOptions {
   inputSource: InputSource;
@@ -28,6 +29,8 @@ export interface PracticeOptions {
   /** Valid combined calibration offset in seconds, or null when uncalibrated. */
   deltaIO: number | null;
   simProfile: SimProfile;
+  /** Recall: full cues, reduced (no fret/finger numbers) or none (play from memory). */
+  cueLevel: CueLevel;
 }
 
 export interface PhraseResult {
@@ -306,7 +309,11 @@ export class PracticeController {
       this.feedback =
         this.opts.inputSource === 'none'
           ? `Waiting: play ${midiName(ev.pitchMidi)} (string ${ev.string}, ${ev.fret === 0 ? 'open' : `fret ${ev.fret}`}), then press Continue. Listening is off.`
-          : `Waiting for ${midiName(ev.pitchMidi)} — string ${ev.string}, ${ev.fret === 0 ? 'open' : `fret ${ev.fret}`}${ev.finger ? `, finger ${ev.finger}` : ''}.`;
+          : this.opts.cueLevel === 'none'
+            ? 'Waiting for the next note — from memory.'
+            : this.opts.cueLevel === 'reduced'
+              ? `Waiting for the next note on string ${ev.string}.`
+              : `Waiting for ${midiName(ev.pitchMidi)} — string ${ev.string}, ${ev.fret === 0 ? 'open' : `fret ${ev.fret}`}${ev.finger ? `, finger ${ev.finger}` : ''}.`;
       if (this.opts.inputSource === 'simulation' && this.opts.simProfile !== 'silent') {
         const idx = this.transport.events.indexOf(ev);
         const wrongFirst = this.opts.simProfile === 'mixed' && idx % 3 === 2;
@@ -431,6 +438,7 @@ export class PracticeController {
       simulated: this.opts.inputSource === 'simulation',
       calibrated: this.calibrated,
       policyVersion: BEGINNER_POLICY.version,
+      cueLevel: this.opts.cueLevel,
       stats,
       suggestion: sug.text,
       startedAt: this.attemptStartedAt.toISOString(),

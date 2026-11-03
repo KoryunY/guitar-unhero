@@ -63,6 +63,8 @@ export interface LessonProgress {
   completedAt: string | null;
   completionEvidence: Evidence | null;
   skillState: SkillState;
+  /** Set when a later-day recall attempt succeeded. */
+  retainedAt?: string | null;
   imported?: boolean;
 }
 
@@ -80,6 +82,8 @@ export interface PracticeSummaryRecord {
   policyVersion: string;
   stats: PhraseStats;
   suggestion: string;
+  /** Recall level: full cues, reduced (no fret/finger numbers) or none (from memory). */
+  cueLevel?: 'full' | 'reduced' | 'none';
   startedAt: string;
   finishedAt: string;
   imported?: boolean;

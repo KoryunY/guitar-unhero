@@ -9,6 +9,7 @@ import { FretDiagram } from '../components/FretDiagram';
 import { InputMeter } from '../components/InputMeter';
 import { ListenControl } from '../components/ListenControl';
 import { PracticePlayer } from '../practice/PracticePlayer';
+import { EarComparePanel, QuizPanel, SequencePanel, StrumAlongPanel, TapPulsePanel } from '../components/StepPanels';
 
 export function Learn({ lessonId }: { lessonId: string | null }) {
   const { lessons } = useApp();
@@ -88,8 +89,10 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
         {step.kind === 'practice' && step.scoreRef && (
           <div style={{ marginTop: 12 }}>
             <PracticePlayer
+              key={`${lesson.lessonId}:${step.id}`}
               score={findBundledScore(step.scoreRef)!}
               compact
+              initial={step.practice}
               onSummary={(r) => {
                 if (r.stats.pitch.accuracy !== null && r.stats.pitch.accuracy >= 0.6) finishStep(r.simulated ? 'simulated' : 'sensor');
               }}
@@ -97,15 +100,23 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
             {step.selfCheckLabel && <button onClick={() => finishStep('self_reported')} style={{ marginTop: 8 }}>{step.selfCheckLabel}</button>}
           </div>
         )}
+        {step.kind === 'quiz' && step.quiz && <QuizPanel key={step.id} quiz={step.quiz} onComplete={() => finishStep('sensor')} />}
+        {step.kind === 'tap-pulse' && step.pulse && <TapPulsePanel key={step.id} bpm={step.pulse.bpm} beats={step.pulse.beats} onComplete={() => finishStep('sensor')} />}
+        {step.kind === 'sequence' && step.sequence && <SequencePanel key={step.id} step={step} onComplete={finishStep} evidenceSource={evidenceSource} />}
+        {step.kind === 'strum-along' && step.strum && <StrumAlongPanel key={step.id} strum={step.strum} leftHanded={settings.handedness === 'left'} />}
+        {step.kind === 'ear-compare' && step.ear && <EarComparePanel key={step.id} ear={step.ear} onComplete={() => finishStep('sensor')} />}
+        {step.selfCheckLabel && (step.kind === 'tap-pulse' || step.kind === 'strum-along') && (
+          <button onClick={() => finishStep('self_reported')} style={{ marginTop: 8 }}>{step.selfCheckLabel}</button>
+        )}
         {step.kind === 'choice' && (
           <div className="row">
             {lesson.nextLessonId && (
               <button className="primary" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('learn', lesson.nextLessonId!); }}>
-                {lesson.lessonId.includes('first-sound') ? 'Try a fretted note' : 'Next lesson'}
+                Next: {findLesson(lesson.nextLessonId)?.title ?? 'next lesson'}
               </button>
             )}
             {!lesson.nextLessonId && (
-              <button className="primary" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('practice', 'exercise.first-two-strings'); }}>Practice “First two strings”</button>
+              <button className="primary" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('practice', 'piece.morning-steps'); }}>Practice “Morning Steps”</button>
             )}
             <button onClick={() => setIdx(0)}>Repeat this lesson</button>
             <button onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('home'); }}>Finish for today</button>
@@ -127,7 +138,7 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
   function bestEvidence(): Evidence {
     // Sensor evidence only if every listening step was actually heard; any simulated
     // step keeps the lesson labeled simulated; otherwise it is a self-report.
-    const attemptIds = lesson.steps.filter((s) => s.kind === 'attempt').map((s) => s.id);
+    const attemptIds = lesson.steps.filter((s) => s.kind === 'attempt' || s.kind === 'sequence').map((s) => s.id);
     const attemptEvs = progress?.completedSteps.filter((s) => attemptIds.includes(s.stepId)).map((s) => s.evidence) ?? [];
     if (attemptEvs.length === attemptIds.length && attemptEvs.every((e) => e === 'sensor')) return 'sensor';
     if (progress?.completedSteps.some((s) => s.evidence === 'simulated')) return 'simulated';

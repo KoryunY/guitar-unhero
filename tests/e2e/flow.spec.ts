@@ -8,6 +8,8 @@ test.describe('M1 learning loop (AC-04, AC-06, AC-20)', () => {
     await expect(page.getByRole('heading', { name: /Welcome/ })).toBeVisible();
     await page.getByRole('button', { name: 'Try the simulation (no guitar)' }).click();
     await expect(page.getByTestId('sim-banner')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Meet the guitar' })).toBeVisible();
+    await page.goto('/#/learn/lesson.high-e.first-sound.v1');
     await expect(page.getByRole('heading', { name: 'Your first sound: the high E string' })).toBeVisible();
 
     // Step 1 info → step 2 demo → step 3 attempt (simulated).
@@ -82,6 +84,7 @@ test.describe('M1 learning loop (AC-04, AC-06, AC-20)', () => {
     await freshStart(page);
     await page.getByLabel('Right hand frets (left-handed guitar)').check();
     await page.getByRole('button', { name: 'Continue without listening' }).click();
+    await page.goto('/#/learn/lesson.high-e.first-sound.v1');
     const img = page.getByRole('img', { name: /String 1 — high E/ });
     await expect(img).toHaveAttribute('aria-label', /mirrored for left-handed/);
     await expect(img).toHaveAttribute('aria-label', /string 1 \(high E, thinnest\) at the top/);
@@ -131,7 +134,7 @@ test.describe('local data (AC-20)', () => {
     await page.getByRole('button', { name: 'Continue without listening' }).click();
     await page.getByRole('button', { name: 'Got it — next' }).click();
     await page.goto('/#/data');
-    await expect(page.getByTestId('lesson-progress')).toContainText('1/6 steps');
+    await expect(page.getByTestId('lesson-progress')).toContainText('1/5 steps');
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export').click()]);
     const path = await download.path();
     const json = JSON.parse(readFileSync(path!, 'utf8'));
@@ -143,13 +146,13 @@ test.describe('local data (AC-20)', () => {
     await page.getByTestId('confirm-delete').click();
     await expect(page.getByTestId('lesson-progress')).toContainText('not started');
     await page.reload();
-    await expect(page.getByTestId('lesson-progress')).not.toContainText('1/6 steps');
+    await expect(page.getByTestId('lesson-progress')).not.toContainText('1/5 steps');
 
     page.once('dialog', (d) => d.accept());
     await page.getByTestId('import-file').setInputFiles(path!);
     await expect(page.getByTestId('data-msg')).toContainText('Imported 1 lesson');
     await page.reload();
-    await expect(page.getByTestId('lesson-progress')).toContainText('1/6 steps');
+    await expect(page.getByTestId('lesson-progress')).toContainText('1/5 steps');
     await expect(page.getByTestId('lesson-progress')).toContainText('imported');
 
     // Malformed import is rejected and changes nothing.

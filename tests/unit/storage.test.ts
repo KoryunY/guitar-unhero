@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { clearStores, closeDb, loadLessons, loadSettings, loadSummaries, replaceAll, saveLesson, saveSettings, saveSummary } from '../../src/storage/db';
 import { buildExport, parseImport } from '../../src/storage/exchange';
 import { DEFAULT_SETTINGS, type LessonProgress, type PracticeSummaryRecord } from '../../src/storage/types';
-import { LESSONS, attemptFeedback } from '../../src/learning/lessons';
+import { AM, EM, LESSONS, attemptFeedback, chordTargets, findLesson } from '../../src/learning/lessons';
 import { findBundledScore } from '../../src/content/scores';
 
 const lesson: LessonProgress = {
@@ -82,8 +82,7 @@ describe('lesson content', () => {
       for (const s of l.steps) if (s.scoreRef) expect(findBundledScore(s.scoreRef)).toBeDefined();
       expect(l.steps.at(-1)!.kind).toBe('choice');
     }
-    const first = LESSONS[0]!;
-    expect(first.lessonId).toBe('lesson.high-e.first-sound.v1');
+    const first = LESSONS.find((l) => l.lessonId === 'lesson.high-e.first-sound.v1')!;
     expect(first.steps.some((s) => s.kind === 'attempt' && s.selfCheckLabel)).toBe(true);
   });
   it('gives specific observations', () => {
@@ -91,5 +90,35 @@ describe('lesson content', () => {
     expect(attemptFeedback({ targetMidi: 67, string: 1, fret: 3, finger: 3, required: 2 }, 65).text).toContain('That sounded like F');
     expect(attemptFeedback({ targetMidi: 65, string: 1, fret: 1, finger: 1, required: 2 }, 64).text).toContain('the open string');
     expect(attemptFeedback({ targetMidi: 64, string: 1, fret: 0, finger: null, required: 3 }, 59).text).toContain('open string 2');
+  });
+});
+
+describe('M2 curriculum', () => {
+  it('chains every lesson in order, ending with listen-and-remember', () => {
+    const ids = LESSONS.map((l) => l.lessonId);
+    expect(ids[0]).toBe('lesson.meet-guitar.v1');
+    for (let i = 0; i < LESSONS.length - 1; i++) expect(LESSONS[i]!.nextLessonId).toBe(ids[i + 1]);
+    expect(LESSONS.at(-1)!.nextLessonId).toBeNull();
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+  it('chord shapes match the reviewed facts in the specification (§3.3)', () => {
+    expect(chordTargets(EM).map((t) => t.targetMidi)).toEqual([40, 47, 52, 55, 59, 64]);
+    expect(chordTargets(EM).filter((t) => t.finger).map((t) => [t.string, t.fret, t.finger])).toEqual([[5, 2, 2], [4, 2, 3]]);
+    expect(chordTargets(AM).map((t) => t.string)).toEqual([5, 4, 3, 2, 1]); // string 6 is x
+    expect(chordTargets(AM).map((t) => t.targetMidi)).toEqual([45, 52, 57, 60, 64]);
+    expect(chordTargets(AM).filter((t) => t.finger).map((t) => [t.string, t.fret, t.finger])).toEqual([[4, 2, 2], [3, 2, 3], [2, 1, 1]]);
+  });
+  it('every step kind has its required data', () => {
+    for (const l of LESSONS) {
+      for (const s of l.steps) {
+        if (s.kind === 'quiz') expect(s.quiz!.options[s.quiz!.answer]).toBeDefined();
+        if (s.kind === 'sequence') expect(s.sequence!.targets.length).toBeGreaterThan(0);
+        if (s.kind === 'strum-along') expect(s.strum!.bars.every((b) => s.strum!.shapes.some((sh) => sh.name.includes(`(${b})`)))).toBe(true);
+        if (s.kind === 'tap-pulse') expect(s.pulse!.beats).toBeGreaterThan(3);
+        if (s.kind === 'ear-compare') expect(s.ear!.pool.length).toBeGreaterThan(1);
+        if (s.kind === 'practice') expect(findBundledScore(s.scoreRef!)).toBeDefined();
+      }
+    }
+    expect(findLesson('lesson.first-piece.v1')!.scoreRef).toBe('piece.morning-steps');
   });
 });

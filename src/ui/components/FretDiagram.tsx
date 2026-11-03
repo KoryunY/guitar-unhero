@@ -9,14 +9,17 @@ import type { StringNumber } from '../../domain/score';
  */
 export function FretDiagram({ diagram, leftHanded }: { diagram: Diagram; leftHanded: boolean }) {
   const frets = 5;
-  const W = 560, H = 200, left = 80, right = 20, top = 22, gap = 28;
+  const W = 560, H = 200, left = 96, right = 30, top = 22, gap = 28;
   const fretW = (W - left - right) / frets;
-  const xOfFret = (f: number) => (leftHanded ? W - right - f * fretW : left + f * fretW);
+  // The label margin (and nut) sit on the left for right-handed display, on the right when mirrored.
+  const xOfFret = (f: number) => (leftHanded ? W - left - f * fretW : left + f * fretW);
   const nutX = xOfFret(0);
   const strings: StringNumber[] = [1, 2, 3, 4, 5, 6];
   const dot = diagram.dot;
+  const dots = [...(diagram.dots ?? []), ...(dot ? [dot] : [])];
+  const fingerText = dots.map((d) => `string ${d.string} fret ${d.fret}${d.finger ? ` finger ${d.finger}` : ''}`).join('; ');
   const desc =
-    `${diagram.caption} Diagram reads like tablature: string 1 (high E, thinnest) at the top, string 6 (low E, thickest) at the bottom` +
+    `${diagram.caption}${fingerText ? ` Fingers: ${fingerText}.` : ''} Diagram reads like tablature: string 1 (high E, thinnest) at the top, string 6 (low E, thickest) at the bottom` +
     `${leftHanded ? '; mirrored for left-handed players, nut on the right' : '; nut on the left'}.`;
   return (
     <figure className="fret-diagram" style={{ margin: 0 }}>
@@ -42,18 +45,24 @@ export function FretDiagram({ diagram, leftHanded }: { diagram: Diagram; leftHan
             </g>
           );
         })}
-        {dot && (
-          <g>
-            {/* Fingertip just behind the fret wire (toward the nut). */}
-            <circle cx={xOfFret(dot.fret) + (leftHanded ? 1 : -1) * fretW * 0.28} cy={top + (dot.string - 1) * gap} r={12} fill="var(--accent)" stroke="var(--ink)" />
-            <text x={xOfFret(dot.fret) + (leftHanded ? 1 : -1) * fretW * 0.28} y={top + (dot.string - 1) * gap + 5} textAnchor="middle" fontSize="14" fontWeight="700" fill="var(--accent-ink)">
-              {dot.finger ?? '•'}
-            </text>
-          </g>
-        )}
+        {dots.map((d) => {
+          const cx = xOfFret(d.fret) + (leftHanded ? 1 : -1) * fretW * 0.28; // fingertip just behind the fret wire
+          const cy = top + (d.string - 1) * gap;
+          return (
+            <g key={`${d.string}-${d.fret}`}>
+              <circle cx={cx} cy={cy} r={12} fill="var(--accent)" stroke="var(--ink)" />
+              <text x={cx} y={cy + 5} textAnchor="middle" fontSize="14" fontWeight="700" fill="var(--accent-ink)">{d.finger ?? '•'}</text>
+            </g>
+          );
+        })}
+        {(diagram.markers ?? []).map((m) => (
+          <text key={`m${m.string}`} x={nutX + (leftHanded ? 14 : -14)} y={top + (m.string - 1) * gap + 5} textAnchor="middle" fontSize="15" fontWeight="700" fill={m.mark === 'x' ? 'var(--bad)' : 'var(--good)'}>
+            {m.mark}
+          </text>
+        ))}
       </svg>
       <figcaption className="small muted">
-        {diagram.caption} {dot?.finger ? `Number in the dot = suggested finger (1 index, 2 middle, 3 ring, 4 little).` : ''} Read like tab: string 1 on top.
+        {diagram.caption} {dots.some((d) => d.finger) ? `Number in the dot = suggested finger (1 index, 2 middle, 3 ring, 4 little).` : ''} Read like tab: string 1 on top.
         {leftHanded ? ' Mirrored for left-handed playing.' : ''}
       </figcaption>
     </figure>

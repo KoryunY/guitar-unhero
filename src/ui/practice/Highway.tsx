@@ -17,7 +17,7 @@ function css(name: string): string {
  * frame counting. Left-handed display mirrors direction, not string numbers.
  * Reduced motion: positions advance in whole-beat steps.
  */
-export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec }: { controller: PracticeController; leftHanded: boolean; reducedMotion: boolean; lookaheadSec: number }) {
+export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec, cueLevel = 'full' }: { controller: PracticeController; leftHanded: boolean; reducedMotion: boolean; lookaheadSec: number; cueLevel?: 'full' | 'reduced' | 'none' }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -115,6 +115,8 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec }:
       const r = Math.min(laneH * 0.42, 18);
       for (const ev of t.events) {
         const s = t.eventSec(ev);
+        // From memory: upcoming notes are hidden; judged notes are shown after the fact.
+        if (cueLevel === 'none' && s > pos - 1e-6 && !controller.judgmentByNote.get(`${t.loopIteration}:${ev.id}`)) continue;
         const x = xOf(s);
         const dur = t.tickToSec(ev.durationTicks) * pps;
         const tailEnd = leftHanded ? x - dur : x + dur;
@@ -138,12 +140,12 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec }:
         g.fillStyle = colors.accentInk;
         g.font = `bold ${Math.round(r * 1.05)}px system-ui`;
         g.textAlign = 'center';
-        g.fillText(String(ev.fret), x, y + r * 0.38);
+        if (cueLevel === 'full') g.fillText(String(ev.fret), x, y + r * 0.38);
         // Finger number on approach, judgment glyph after.
         g.font = '12px system-ui';
         g.fillStyle = colors.ink;
         if (j) g.fillText(GLYPH[j.state], x, y - r - 3);
-        else if (ev.finger && s - pos < 2.5 * t.rate && s >= pos) g.fillText(`finger ${ev.finger}`, x, y - r - 3);
+        else if (cueLevel === 'full' && ev.finger && s - pos < 2.5 * t.rate && s >= pos) g.fillText(`finger ${ev.finger}`, x, y - r - 3);
       }
 
       // Count-in overlay.
@@ -158,19 +160,23 @@ export function Highway({ controller, leftHanded, reducedMotion, lookaheadSec }:
         g.fillStyle = colors.ink;
         g.font = 'bold 15px system-ui';
         g.textAlign = 'center';
-        g.fillText(`Waiting: string ${waiting.string}, ${waiting.fret === 0 ? 'open' : `fret ${waiting.fret}`}`, (playL + playR) / 2, 16);
+        g.fillText(
+          cueLevel === 'none' ? 'Waiting: next note from memory' : cueLevel === 'reduced' ? `Waiting: string ${waiting.string}` : `Waiting: string ${waiting.string}, ${waiting.fret === 0 ? 'open' : `fret ${waiting.fret}`}`,
+          (playL + playR) / 2,
+          16,
+        );
       }
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [controller, leftHanded, reducedMotion, lookaheadSec]);
+  }, [controller, leftHanded, reducedMotion, lookaheadSec, cueLevel]);
 
   return (
     <div className="highway-wrap">
       <canvas
         ref={canvasRef}
         role="img"
-        aria-label={`Practice highway: six string lanes, string 1 (high E) at the top. Notes move ${leftHanded ? 'left-to-right' : 'right-to-left'} toward the hit line; the number in each note is the fret. A text list of the notes follows below.`}
+        aria-label={`${cueLevel === 'none' ? 'From memory: upcoming notes hidden. ' : ''}Practice highway: six string lanes, string 1 (high E) at the top. Notes move ${leftHanded ? 'left-to-right' : 'right-to-left'} toward the hit line; the number in each note is the fret. A text list of the notes follows below.`}
       />
     </div>
   );

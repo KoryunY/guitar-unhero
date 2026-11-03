@@ -11,8 +11,51 @@ export interface Diagram {
   highlight: StringNumber[];
   /** Fretted dot, if any. */
   dot?: { string: StringNumber; fret: number; finger: Finger };
+  /** Several fretted dots (chord shapes). */
+  dots?: { string: StringNumber; fret: number; finger: Finger }[];
+  /** Open (o) / do-not-play (x) markers at the nut. */
+  markers?: { string: StringNumber; mark: 'o' | 'x' }[];
   caption: string;
 }
+
+/** A chord shape: frets per string, listed low→high (string 6 → string 1); 'x' = do not play. */
+export interface ChordShape {
+  name: string;
+  lowToHigh: ('x' | number)[];
+  fingersLowToHigh: Finger[];
+}
+
+export function chordDiagram(c: ChordShape): Diagram {
+  const dots: NonNullable<Diagram['dots']> = [];
+  const markers: NonNullable<Diagram['markers']> = [];
+  c.lowToHigh.forEach((f, i) => {
+    const string = (6 - i) as StringNumber;
+    if (f === 'x') markers.push({ string, mark: 'x' });
+    else if (f === 0) markers.push({ string, mark: 'o' });
+    else dots.push({ string, fret: f, finger: c.fingersLowToHigh[i] ?? null });
+  });
+  return {
+    highlight: [],
+    dots,
+    markers,
+    caption: `${c.name}: low-to-high ${c.lowToHigh.join(' ')} (strings 6→1). o = play open, x = do not play.`,
+  };
+}
+
+/** The string-by-string pitches of a chord shape, in pluck order 6 → 1 (skipping x). */
+export function chordTargets(c: ChordShape): AttemptSpec[] {
+  const out: AttemptSpec[] = [];
+  c.lowToHigh.forEach((f, i) => {
+    if (f === 'x') return;
+    const string = (6 - i) as StringNumber;
+    out.push({ targetMidi: openMidi(string) + f, string, fret: f, finger: c.fingersLowToHigh[i] ?? null, required: 1 });
+  });
+  return out;
+}
+
+/** Reviewed chord facts from the master specification §3.3. */
+export const EM: ChordShape = { name: 'E minor (Em)', lowToHigh: [0, 2, 2, 0, 0, 0], fingersLowToHigh: [null, 2, 3, null, null, null] };
+export const AM: ChordShape = { name: 'A minor (Am)', lowToHigh: ['x', 0, 2, 2, 1, 0], fingersLowToHigh: [null, null, 2, 3, 1, null] };
 
 export interface AttemptSpec {
   targetMidi: number;
@@ -25,7 +68,7 @@ export interface AttemptSpec {
 export interface LessonStep {
   id: string;
   title: string;
-  kind: 'info' | 'demo' | 'attempt' | 'stop-ringing' | 'practice' | 'choice';
+  kind: 'info' | 'demo' | 'attempt' | 'stop-ringing' | 'practice' | 'choice' | 'quiz' | 'tap-pulse' | 'sequence' | 'strum-along' | 'ear-compare';
   body: string[];
   diagram?: Diagram;
   /** Prepare / press / sound / release cues, shown in order. */
@@ -36,6 +79,14 @@ export interface LessonStep {
   attempt?: AttemptSpec;
   scoreRef?: string;
   selfCheckLabel?: string;
+  /** Practice step defaults. */
+  practice?: { mode?: 'wait' | 'fixed' | 'listen'; rate?: 0.5 | 0.75 | 1; cueLevel?: 'full' | 'reduced' | 'none' };
+  quiz?: { question: string; options: string[]; answer: number; explain: string };
+  pulse?: { bpm: number; beats: number };
+  /** Notes to pluck one at a time, in order (chord string checks, echo phrases). */
+  sequence?: { targets: AttemptSpec[]; playFirst?: boolean; label: string };
+  strum?: { bpm: number; bars: string[]; shapes: ChordShape[] };
+  ear?: { rounds: number; pool: number[]; seed: number };
 }
 
 export interface Lesson {
@@ -69,7 +120,7 @@ const RIGHTS = {
 const REST_HAND =
   'If anything hurts, stop and rest. Comfortable, relaxed movement matters more than speed.';
 
-export const LESSONS: readonly Lesson[] = [
+const M1_LESSONS: Lesson[] = [
   {
     lessonId: 'lesson.high-e.first-sound.v1',
     version: 1,
@@ -88,7 +139,7 @@ export const LESSONS: readonly Lesson[] = [
     rights: RIGHTS,
     reviewStatus: 'unreviewed',
     teacherReviewer: null,
-    nextLessonId: 'lesson.high-e.first-frets.v1',
+    nextLessonId: 'lesson.pulse.v1',
     steps: [
       {
         id: 'meet-string',
@@ -290,7 +341,7 @@ export const LESSONS: readonly Lesson[] = [
     rights: RIGHTS,
     reviewStatus: 'unreviewed',
     teacherReviewer: null,
-    nextLessonId: null,
+    nextLessonId: 'lesson.em-chord.v1',
     steps: [
       {
         id: 'meet-b',
@@ -335,6 +386,400 @@ export const LESSONS: readonly Lesson[] = [
     ],
   },
 ];
+
+
+const target = (string: StringNumber, fret: number, finger: Finger = null): AttemptSpec => ({ targetMidi: openMidi(string) + fret, string, fret, finger, required: 1 });
+
+const M2_LESSONS: Lesson[] = [
+  {
+    lessonId: 'lesson.meet-guitar.v1',
+    version: 1,
+    title: 'Meet the guitar',
+    skillId: 'skill.guitar.identified',
+    prerequisiteSkillIds: [],
+    learningObjective: 'Name the parts you will use, find strings 1 and 6, and choose a comfortable way to hold the guitar.',
+    estimatedMinutes: '3–4',
+    equipment: ['guitar optional'],
+    demonstrationAssets: ['diagrams', 'synthesized open-string sounds'],
+    scoreRef: null,
+    supportedAssessments: [],
+    selfCheck: 'I can point to string 1 (thinnest) and string 6 (thickest).',
+    successRule: 'Answer the two string questions (answers can be retried).',
+    fallbacks: ['Re-read the diagram', 'Listen to the high and low E'],
+    rights: RIGHTS,
+    reviewStatus: 'unreviewed',
+    teacherReviewer: null,
+    nextLessonId: 'lesson.high-e.first-sound.v1',
+    steps: [
+      {
+        id: 'parts',
+        title: 'The parts you will use',
+        kind: 'info',
+        body: [
+          'Headstock and tuning pegs: turning a peg tightens or loosens a string, which raises or lowers its pitch.',
+          'Neck and frets: the metal strips across the neck are frets. Pressing a string just behind a fret makes a higher note.',
+          'Body and sound hole (or pickups): pluck or strum the strings over this area.',
+          'Strings are numbered 1 to 6. String 1 is the thinnest and highest-sounding; string 6 is the thickest and lowest.',
+        ],
+        diagram: { highlight: [1, 6], caption: 'Strings 1 (thinnest, high E) and 6 (thickest, low E).' },
+        demoMidis: [64, 40],
+        demoLabel: 'Hear string 1, then string 6',
+      },
+      {
+        id: 'quiz-string-1',
+        title: 'Quick check: string 1',
+        kind: 'quiz',
+        body: ['No guitar needed — just pick an answer. You can try again as often as you like.'],
+        quiz: {
+          question: 'Which string is “string 1”?',
+          options: ['The thickest string', 'The thinnest string', 'The middle string'],
+          answer: 1,
+          explain: 'String 1 is the thinnest, highest-sounding string (high E). When you hold the guitar it is closest to the floor.',
+        },
+      },
+      {
+        id: 'quiz-high',
+        title: 'Quick check: “high” and “low”',
+        kind: 'quiz',
+        body: ['Guitarists say “high” and “low” about sound, not position.'],
+        quiz: {
+          question: 'When you hold the guitar, string 6 is nearest your face. Why is it called the “low” E?',
+          options: ['Because it is lowest on the guitar', 'Because it makes the lowest sound', 'Because it is the loosest string'],
+          answer: 1,
+          explain: '“Low” describes pitch: string 6 makes the lowest sound, even though it sits highest when you hold the guitar.',
+        },
+      },
+      {
+        id: 'holding',
+        title: 'Holding the guitar',
+        kind: 'info',
+        body: [
+          'Sit on a chair without arms. Rest the guitar’s waist on the leg on your strumming-hand side (classical players often use the other leg with a footstool).',
+          'Keep your back relaxed and the neck pointing slightly upward. Your fretting hand should not carry the guitar’s weight.',
+          'Use a thin or medium pick, or the side of your thumb — both are fine for these lessons.',
+          'If anything hurts, stop and rest. Comfortable movement matters more than speed. These instructions are general guidance, not a medical or posture assessment.',
+        ],
+        diagram: { highlight: [1], caption: 'Diagrams read like tablature: string 1 on top.' },
+      },
+      { id: 'next', title: 'What next?', kind: 'choice', body: ['Next: tune the guitar (Tuner), then make your first sound.'] },
+    ],
+  },
+  {
+    lessonId: 'lesson.pulse.v1',
+    version: 1,
+    title: 'Feel the pulse',
+    skillId: 'skill.pulse.quarters',
+    prerequisiteSkillIds: ['skill.high-e.open'],
+    learningObjective: 'Count four steady beats, tap along with clicks, then play quarter notes and a rest on the open high E.',
+    estimatedMinutes: '4–6',
+    equipment: ['keyboard or touch screen', 'guitar for the last step'],
+    demonstrationAssets: ['metronome clicks'],
+    scoreRef: 'exercise.pulse-quarters',
+    supportedAssessments: ['isolated_pitch', 'attack_time'],
+    selfCheck: 'I played three beats and rested on the fourth.',
+    successRule: 'Tap test: ≥75 % of taps near a click; guitar step: assessed notes or self-check.',
+    fallbacks: ['Count out loud', 'Use wait mode', 'Self-check'],
+    rights: RIGHTS,
+    reviewStatus: 'unreviewed',
+    teacherReviewer: null,
+    nextLessonId: 'lesson.high-e.first-frets.v1',
+    steps: [
+      {
+        id: 'count',
+        title: 'Count four',
+        kind: 'info',
+        body: [
+          'Music is organised in steady beats. Here each bar has four: count “1, 2, 3, 4, 1, 2, 3, 4…” at an even speed.',
+          'A rest is a beat where you do not play — but you keep counting.',
+        ],
+      },
+      {
+        id: 'tap',
+        title: 'Tap along',
+        kind: 'tap-pulse',
+        body: ['Press Start. After four count-in clicks, tap Space (or the big button) on each of the next eight clicks. No guitar needed.'],
+        pulse: { bpm: 60, beats: 8 },
+        selfCheckLabel: 'I tapped along (self-check)',
+      },
+      {
+        id: 'play',
+        title: 'Three beats and a rest',
+        kind: 'practice',
+        body: ['Pluck the open high E on beats 1, 2 and 3. On beat 4 rest — let the string ring or stop it gently, your choice. Use downstrokes (pluck toward the floor).'],
+        scoreRef: 'exercise.pulse-quarters',
+        practice: { mode: 'fixed', rate: 1 },
+        selfCheckLabel: 'I played the pattern (self-check)',
+      },
+      { id: 'next', title: 'What next?', kind: 'choice', body: ['Next you will press your first frets on string 1.'] },
+    ],
+  },
+  {
+    lessonId: 'lesson.em-chord.v1',
+    version: 1,
+    title: 'Your first chord: E minor',
+    skillId: 'skill.chord.em',
+    prerequisiteSkillIds: ['skill.b-string.frets-1-3'],
+    learningObjective: 'Form Em, check each string separately, then strum it gently.',
+    estimatedMinutes: '6–8',
+    equipment: ['tuned guitar', 'optional microphone'],
+    demonstrationAssets: ['synthesized string-by-string Em'],
+    scoreRef: null,
+    supportedAssessments: ['isolated_pitch'],
+    selfCheck: 'Each string rang clearly and I strummed four times.',
+    successRule: 'Each of the six strings heard at its expected pitch (one at a time), or self-check. The full strummed chord is not assessed.',
+    fallbacks: ['Self-check', 'Pluck strings one by one again'],
+    rights: RIGHTS,
+    reviewStatus: 'unreviewed',
+    teacherReviewer: null,
+    nextLessonId: 'lesson.am-chord.v1',
+    steps: [
+      {
+        id: 'shape',
+        title: 'The Em shape',
+        kind: 'demo',
+        body: [
+          'Em uses two fingers. A common fingering: middle finger on string 5 at fret 2, ring finger on string 4 at fret 2. All six strings are played.',
+          'Fingertips just behind the fret, arched so they don’t touch the neighbouring strings. Press only as much as needed.',
+          'Finger numbers are suggestions; other comfortable fingerings are fine.',
+        ],
+        diagram: chordDiagram(EM),
+        phases: [
+          { label: 'Prepare', text: 'Hover both fingertips above fret 2.' },
+          { label: 'Press', text: 'Place middle (string 5) then ring (string 4).' },
+          { label: 'Sound', text: 'Pluck strings 6 → 1 one at a time.' },
+          { label: 'Release', text: 'Relax the fingers and shake the hand loose.' },
+        ],
+        demoMidis: [40, 47, 52, 55, 59, 64],
+        demoLabel: 'Hear Em string by string',
+      },
+      {
+        id: 'check',
+        title: 'Check each string',
+        kind: 'sequence',
+        body: [
+          'Hold the Em shape and pluck one string at a time, from string 6 down to string 1. I listen for each expected note.',
+          'If a string sounds muffled or wrong, adjust that finger and pluck it again. A clear note means that string is sounding — it does not tell me which finger you used.',
+        ],
+        diagram: chordDiagram(EM),
+        sequence: { targets: chordTargets(EM), label: 'Pluck string' },
+        selfCheckLabel: 'Each string rang clearly (self-check)',
+      },
+      {
+        id: 'strum',
+        title: 'A gentle strum',
+        kind: 'strum-along',
+        body: [
+          'Brush down across all six strings once per bar, on beat 1, and let it ring. Keep counting 2, 3, 4.',
+          'Strummed chords are not assessed yet — the microphone cannot reliably tell whether every string sounded. Use your ears and the self-check.',
+        ],
+        diagram: chordDiagram(EM),
+        strum: { bpm: 60, bars: ['Em', 'Em', 'Em', 'Em'], shapes: [EM] },
+        selfCheckLabel: 'I strummed Em on each bar (self-check)',
+      },
+      { id: 'next', title: 'What next?', kind: 'choice', body: ['Next: A minor, and changing between the two shapes.'] },
+    ],
+  },
+  {
+    lessonId: 'lesson.am-chord.v1',
+    version: 1,
+    title: 'A minor and your first chord change',
+    skillId: 'skill.chord.am-change',
+    prerequisiteSkillIds: ['skill.chord.em'],
+    learningObjective: 'Form Am, check each played string, and change slowly between Em and Am.',
+    estimatedMinutes: '8–10',
+    equipment: ['tuned guitar', 'optional microphone'],
+    demonstrationAssets: ['synthesized string-by-string Am'],
+    scoreRef: null,
+    supportedAssessments: ['isolated_pitch'],
+    selfCheck: 'I changed between Em and Am in time, slowly.',
+    successRule: 'Strings 5 → 1 heard at expected pitches, or self-check. Chord changes are not assessed.',
+    fallbacks: ['Self-check', 'Change on every other bar', 'Prepare one finger at a time'],
+    rights: RIGHTS,
+    reviewStatus: 'unreviewed',
+    teacherReviewer: null,
+    nextLessonId: 'lesson.first-piece.v1',
+    steps: [
+      {
+        id: 'shape',
+        title: 'The Am shape',
+        kind: 'demo',
+        body: [
+          'Am: index finger on string 2 at fret 1, middle on string 4 at fret 2, ring on string 3 at fret 2. String 5 is played open, string 1 open.',
+          'String 6 has an x: do not play it. Start your strum from string 5.',
+        ],
+        diagram: chordDiagram(AM),
+        phases: [
+          { label: 'Prepare', text: 'Hover index over string 2 fret 1.' },
+          { label: 'Press', text: 'Place index, then middle and ring at fret 2.' },
+          { label: 'Sound', text: 'Pluck strings 5 → 1 one at a time.' },
+          { label: 'Release', text: 'Relax all three fingers together.' },
+        ],
+        demoMidis: [45, 52, 57, 60, 64],
+        demoLabel: 'Hear Am string by string',
+      },
+      {
+        id: 'check',
+        title: 'Check each string',
+        kind: 'sequence',
+        body: ['Hold Am and pluck strings 5, 4, 3, 2, 1 one at a time. Skip string 6.'],
+        diagram: chordDiagram(AM),
+        sequence: { targets: chordTargets(AM), label: 'Pluck string' },
+        selfCheckLabel: 'Each played string rang clearly (self-check)',
+      },
+      {
+        id: 'change-prep',
+        title: 'How to change shapes',
+        kind: 'info',
+        body: [
+          'From Em to Am, the middle and ring fingers each move one string toward the floor, and the index finger joins on string 2.',
+          'Move the fingers together as a shape, slowly. Lift only as much as needed. Start preparing during beat 4, before the change.',
+          'It is normal for changes to feel slow for days. Smooth beats fast.',
+        ],
+        diagram: chordDiagram(AM),
+      },
+      {
+        id: 'change',
+        title: 'Em ↔ Am, slowly',
+        kind: 'strum-along',
+        body: ['Strum once on beat 1 of each bar. Change shape during beats 2–4. Chord changes are not assessed — follow along and self-check.'],
+        diagram: chordDiagram(EM),
+        strum: { bpm: 50, bars: ['Em', 'Em', 'Am', 'Am', 'Em', 'Em', 'Am', 'Am'], shapes: [EM, AM] },
+        selfCheckLabel: 'I made the changes (self-check)',
+      },
+      { id: 'next', title: 'What next?', kind: 'choice', body: ['Next: put single notes together into your first complete piece.'] },
+    ],
+  },
+  {
+    lessonId: 'lesson.first-piece.v1',
+    version: 1,
+    title: 'Your first complete piece: Morning Steps',
+    skillId: 'skill.piece.morning-steps',
+    prerequisiteSkillIds: ['skill.high-e.frets-1-3', 'skill.b-string.frets-1-3', 'skill.pulse.quarters'],
+    learningObjective: 'Play an original 8-bar melody on strings 1 and 2: listen, play with the app waiting for you, play in time, then play it with fewer cues.',
+    estimatedMinutes: '10–15 (over several days)',
+    equipment: ['tuned guitar', 'microphone recommended'],
+    demonstrationAssets: ['synthesized melody'],
+    scoreRef: 'piece.morning-steps',
+    supportedAssessments: ['isolated_pitch', 'attack_time'],
+    selfCheck: 'I can play Morning Steps from memory.',
+    successRule: 'Fixed tempo ≥80 % pitch on assessed notes with ≥70 % coverage; retained after a cue-free success on a later day.',
+    fallbacks: ['Wait mode', '50 % tempo', 'Loop one bar', 'Self-check'],
+    rights: RIGHTS,
+    reviewStatus: 'unreviewed',
+    teacherReviewer: null,
+    nextLessonId: 'lesson.listen-remember.v1',
+    steps: [
+      {
+        id: 'listen',
+        title: 'Listen first',
+        kind: 'practice',
+        body: ['Listen to the whole piece. Follow the notes on the lanes: string 1 on top, string 2 below. It uses only notes you know: E, F, G on string 1 and B, C, D on string 2.'],
+        scoreRef: 'piece.morning-steps',
+        practice: { mode: 'listen', rate: 1 },
+        selfCheckLabel: 'I listened to it',
+      },
+      {
+        id: 'wait',
+        title: 'Play it with the app waiting for you',
+        kind: 'practice',
+        body: ['Wait mode stops at every note until it hears it. Take your time — rhythm is not graded here. Loop a bar if one spot is tricky.'],
+        scoreRef: 'piece.morning-steps',
+        practice: { mode: 'wait', rate: 1 },
+        selfCheckLabel: 'I played through it (self-check)',
+      },
+      {
+        id: 'fixed',
+        title: 'In time, slowly',
+        kind: 'practice',
+        body: ['Now the music keeps going at 50 %. Prepare each next finger during the note before it. When two phrases go well, the app will offer the next tempo.'],
+        scoreRef: 'piece.morning-steps',
+        practice: { mode: 'fixed', rate: 0.5 },
+        selfCheckLabel: 'I played it in time (self-check)',
+      },
+      {
+        id: 'recall',
+        title: 'Fewer cues, then from memory',
+        kind: 'practice',
+        body: [
+          'Try it with fret numbers hidden (“reduced”), then with no notes shown at all (“from memory”) — just the beat.',
+          'A from-memory success on a later day marks this piece as retained.',
+        ],
+        scoreRef: 'piece.morning-steps',
+        practice: { mode: 'fixed', rate: 0.5, cueLevel: 'reduced' },
+        selfCheckLabel: 'I played it from memory (self-check)',
+      },
+      { id: 'next', title: 'What next?', kind: 'choice', body: ['You played a complete piece. Come back tomorrow and play it from memory to make it stick.'] },
+    ],
+  },
+  {
+    lessonId: 'lesson.listen-remember.v1',
+    version: 1,
+    title: 'Listen and remember',
+    skillId: 'skill.ear.basic',
+    prerequisiteSkillIds: ['skill.high-e.frets-1-3'],
+    learningObjective: 'Hear which of two notes is higher, and echo short two-note phrases on the guitar.',
+    estimatedMinutes: '4–6',
+    equipment: ['headphones recommended', 'guitar for echo'],
+    demonstrationAssets: ['synthesized notes'],
+    scoreRef: null,
+    supportedAssessments: ['isolated_pitch'],
+    selfCheck: 'I echoed the phrases.',
+    successRule: 'Higher/lower: ≥4 of 6; echo: each note heard in order, or self-check.',
+    fallbacks: ['Replay the notes', 'Self-check'],
+    rights: RIGHTS,
+    reviewStatus: 'unreviewed',
+    teacherReviewer: null,
+    nextLessonId: null,
+    steps: [
+      {
+        id: 'higher-lower',
+        title: 'Higher or lower?',
+        kind: 'ear-compare',
+        body: ['You will hear two notes. Which one was higher? No guitar needed. Replay as often as you like.'],
+        ear: { rounds: 6, pool: [59, 60, 62, 64, 65, 67], seed: 7 },
+      },
+      {
+        id: 'echo-1',
+        title: 'Echo: E then G',
+        kind: 'sequence',
+        body: ['Listen to the two notes, then play them back on string 1: open E, then fret 3.'],
+        sequence: { targets: [target(1, 0), target(1, 3, 3)], playFirst: true, label: 'Play' },
+        selfCheckLabel: 'I echoed it (self-check)',
+      },
+      {
+        id: 'echo-2',
+        title: 'Echo: C then B',
+        kind: 'sequence',
+        body: ['Now on string 2: fret 1, then open.'],
+        sequence: { targets: [target(2, 1, 1), target(2, 0)], playFirst: true, label: 'Play' },
+        selfCheckLabel: 'I echoed it (self-check)',
+      },
+      {
+        id: 'echo-3',
+        title: 'Echo by ear',
+        kind: 'sequence',
+        body: ['This time no hint: listen and find the two notes. They are among E, F, G (string 1) and B, C, D (string 2). Use “Show answer” if you need it.'],
+        sequence: { targets: [target(1, 1, 1), target(2, 3, 3)], playFirst: true, label: 'Play' },
+        selfCheckLabel: 'I found them (self-check)',
+      },
+      { id: 'next', title: 'What next?', kind: 'choice', body: ['That completes this set of lessons. Keep Morning Steps alive by playing it from memory now and then.'] },
+    ],
+  },
+];
+
+const ORDER = [
+  'lesson.meet-guitar.v1',
+  'lesson.high-e.first-sound.v1',
+  'lesson.pulse.v1',
+  'lesson.high-e.first-frets.v1',
+  'lesson.b-string.first-frets.v1',
+  'lesson.em-chord.v1',
+  'lesson.am-chord.v1',
+  'lesson.first-piece.v1',
+  'lesson.listen-remember.v1',
+];
+
+export const LESSONS: readonly Lesson[] = ORDER.map((id) => [...M1_LESSONS, ...M2_LESSONS].find((l) => l.lessonId === id)!);
 
 export function findLesson(id: string): Lesson | undefined {
   return LESSONS.find((l) => l.lessonId === id);

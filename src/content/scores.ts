@@ -7,12 +7,16 @@ import firstTwoStrings from '../../Documents/original-exercise.gu-score.json';
 import highEOpen from './exercises/high-e-open.gu-score.json';
 import highEFrets from './exercises/high-e-frets.gu-score.json';
 import bStringFrets from './exercises/b-string-frets.gu-score.json';
+import pulseQuarters from './exercises/pulse-quarters.gu-score.json';
+import morningSteps from './exercises/morning-steps.gu-score.json';
 
 export const BUNDLED_SCORES: readonly Score[] = [
   highEOpen as Score,
+  pulseQuarters as Score,
   highEFrets as Score,
   bStringFrets as Score,
   firstTwoStrings as Score,
+  morningSteps as Score,
 ];
 
 export function findBundledScore(arrangementId: string): Score | undefined {

@@ -6,7 +6,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { freshStart } from './helpers';
 
-const ROUTES = ['/#/home', '/#/setup', '/#/tuner', '/#/learn', '/#/learn/lesson.high-e.first-sound.v1', '/#/practice', '/#/data', '/#/diagnostics'];
+const ROUTES = ['/#/home', '/#/setup', '/#/tuner', '/#/learn', '/#/learn/lesson.high-e.first-sound.v1', '/#/learn/lesson.em-chord.v1', '/#/learn/lesson.pulse.v1', '/#/practice/piece.morning-steps', '/#/practice', '/#/data', '/#/diagnostics'];
 
 for (const theme of ['light', 'dark'] as const) {
   test(`axe: no WCAG 2.x A/AA violations on any screen (${theme})`, async ({ page }) => {

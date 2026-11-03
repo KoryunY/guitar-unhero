@@ -5,17 +5,31 @@ import { midiName } from '../../domain/tuning';
 import { SUPPORTED_RATES, type PracticeMode } from '../../transport/transport';
 import { useApp } from '../AppContext';
 import { ListenControl } from '../components/ListenControl';
-import { PracticeController, type SimProfile } from './controller';
+import { PracticeController, type CueLevel, type SimProfile } from './controller';
+import { adaptationOffer } from '../../learning/adaptation';
 import { Highway } from './Highway';
 import { SummaryCard } from './SummaryCard';
 import type { PracticeSummaryRecord } from '../../storage/types';
 
 const MODE_LABEL: Record<PracticeMode, string> = { wait: 'Wait for me', fixed: 'Fixed tempo', listen: 'Listen (demo)' };
 
-export function PracticePlayer({ score, onSummary, compact = false }: { score: Score; onSummary?: (r: PracticeSummaryRecord) => void; compact?: boolean }) {
-  const { settings, updateSettings, addSummary, deltaIO, mic } = useApp();
+export function PracticePlayer({
+  score,
+  onSummary,
+  compact = false,
+  initial,
+}: {
+  score: Score;
+  onSummary?: (r: PracticeSummaryRecord) => void;
+  compact?: boolean;
+  /** Lesson-provided defaults; otherwise the learner's saved preferences. */
+  initial?: { mode?: PracticeMode; rate?: number; cueLevel?: CueLevel };
+}) {
+  const { settings, updateSettings, addSummary, deltaIO, mic, summaries } = useApp();
   const [, force] = useReducer((x: number) => x + 1, 0);
   const [simProfile, setSimProfile] = useState<SimProfile>('accurate');
+  const [cueLevel, setCueLevel] = useState<CueLevel>(initial?.cueLevel ?? 'full');
+  const [retention, setRetention] = useState<string | null>(null);
   const savedIds = useRef(new Set<string>());
 
   const inputSource = settings.inputMode === 'simulation' ? 'simulation' : settings.inputMode === 'microphone' && mic === 'on' ? 'microphone' : 'none';
@@ -25,8 +39,8 @@ export function PracticePlayer({ score, onSummary, compact = false }: { score: S
       new PracticeController(
         score,
         engine,
-        { inputSource, outputRoute: settings.outputRoute, guideOn: settings.guideOn, metronomeOn: settings.metronomeOn, deltaIO, simProfile },
-        { mode: settings.practiceMode, rate: settings.practiceRate },
+        { inputSource, outputRoute: settings.outputRoute, guideOn: settings.guideOn, metronomeOn: settings.metronomeOn, deltaIO, simProfile, cueLevel },
+        { mode: initial?.mode ?? settings.practiceMode, rate: initial?.rate ?? settings.practiceRate },
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [score],
@@ -42,20 +56,32 @@ export function PracticePlayer({ score, onSummary, compact = false }: { score: S
   }, [controller]);
 
   useEffect(() => {
-    controller.setOptions({ inputSource, outputRoute: settings.outputRoute, guideOn: settings.guideOn, metronomeOn: settings.metronomeOn, deltaIO, simProfile });
-  }, [controller, inputSource, settings.outputRoute, settings.guideOn, settings.metronomeOn, deltaIO, simProfile]);
+    controller.setOptions({ inputSource, outputRoute: settings.outputRoute, guideOn: settings.guideOn, metronomeOn: settings.metronomeOn, deltaIO, simProfile, cueLevel });
+  }, [controller, inputSource, settings.outputRoute, settings.guideOn, settings.metronomeOn, deltaIO, simProfile, cueLevel]);
 
   // Persist each finished phrase once.
   const result = controller.result;
   useEffect(() => {
     if (result && !savedIds.current.has(result.record.id)) {
       savedIds.current.add(result.record.id);
-      if (result.record.mode !== 'listen') addSummary(result.record);
+      if (result.record.mode !== 'listen') {
+        const r = addSummary(result.record);
+        setRetention(
+          r === 'retained'
+            ? 'Played from memory on a later day — this piece is now marked as retained.'
+            : r === 'come-back-later'
+              ? 'Well played with fewer cues. Come back on another day and play it from memory to mark it retained.'
+              : null,
+        );
+      }
       onSummary?.(result.record);
     }
   }, [result, addSummary, onSummary]);
 
   const t = controller.transport;
+  const offer = controller.result
+    ? adaptationOffer(summaries, { arrangementId: score.arrangementId, rate: t.rate, mode: t.mode, cueLevel, loop: t.loop !== null })
+    : null;
 
   // Keyboard: Space play/pause, Escape pause, arrows seek a beat, Home restart, N continue/skip (wait).
   useEffect(() => {
@@ -103,7 +129,7 @@ export function PracticePlayer({ score, onSummary, compact = false }: { score: S
       </div>
       {guide.notice && <p className="callout warn small" data-testid="guide-notice">{guide.notice}</p>}
 
-      <Highway controller={controller} leftHanded={settings.handedness === 'left'} reducedMotion={reducedMotion} lookaheadSec={settings.lookaheadSec} />
+      <Highway controller={controller} leftHanded={settings.handedness === 'left'} reducedMotion={reducedMotion} lookaheadSec={settings.lookaheadSec} cueLevel={cueLevel} />
 
       <div className="transport" role="group" aria-label="Transport controls">
         <button className="primary" onClick={() => controller.togglePlay()} data-testid="play-pause" aria-keyshortcuts="Space">
@@ -135,6 +161,21 @@ export function PracticePlayer({ score, onSummary, compact = false }: { score: S
       </div>
 
       {controller.result && <SummaryCard record={controller.result.record} />}
+      {retention && <p className="callout good" data-testid="retention">{retention}</p>}
+      {controller.result && offer && (
+        <div className="callout" data-testid="offer">
+          <p style={{ margin: '0 0 6px' }}>{offer.text}</p>
+          {offer.kind === 'faster' || offer.kind === 'slower' ? (
+            <button onClick={() => { controller.setRate(offer.rate); updateSettings({ practiceRate: offer.rate }); }}>Use {Math.round(offer.rate * 100)}%</button>
+          ) : offer.kind === 'smaller-loop' ? (
+            <button onClick={() => controller.setLoop({ aTick: 0, bTick: Math.min(score.durationTicks, 3840) })}>Loop bar 1</button>
+          ) : offer.kind === 'fewer-cues' ? (
+            <button onClick={() => setCueLevel('reduced')}>Hide fret numbers</button>
+          ) : offer.kind === 'try-fixed' ? (
+            <button onClick={() => { controller.setMode('fixed'); updateSettings({ practiceMode: 'fixed' }); }}>Switch to fixed tempo</button>
+          ) : null}
+        </div>
+      )}
 
       <details open={!compact}>
         <summary>Practice options</summary>
@@ -156,6 +197,16 @@ export function PracticePlayer({ score, onSummary, compact = false }: { score: S
               </label>
             ))}
             <p className="small muted">Slower tempos reschedule the synthesized notes, so pitch stays the same.</p>
+          </fieldset>
+          <fieldset>
+            <legend>Cues (recall)</legend>
+            {(['full', 'reduced', 'none'] as CueLevel[]).map((c) => (
+              <label key={c} style={{ display: 'block' }}>
+                <input type="radio" name={`cue-${score.arrangementId}`} checked={cueLevel === c} onChange={() => setCueLevel(c)} />{' '}
+                {c === 'full' ? 'Full (fret and finger numbers)' : c === 'reduced' ? 'Reduced (strings only, no numbers)' : 'From memory (beat only)'}
+              </label>
+            ))}
+            <p className="small muted">Fewer cues help you play away from the screen. A from-memory success on a later day marks a piece as retained.</p>
           </fieldset>
           <fieldset>
             <legend>Loop (A–B, in beats)</legend>
@@ -189,7 +240,7 @@ export function PracticePlayer({ score, onSummary, compact = false }: { score: S
         </div>
       </details>
 
-      <details>
+      <details hidden={cueLevel === 'none'}>
         <summary>Notes as text (tablature list)</summary>
         <table className="events" aria-label="Notes in this exercise">
           <thead><tr><th>#</th><th>Bar.beat</th><th>String</th><th>Fret</th><th>Finger</th><th>Note</th><th>Result</th></tr></thead>

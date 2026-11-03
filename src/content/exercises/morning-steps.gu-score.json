@@ -1,0 +1,460 @@
+{
+  "schemaVersion": "gu-score/1",
+  "arrangementId": "piece.morning-steps",
+  "version": 1,
+  "parent": null,
+  "title": "Morning Steps \u2014 your first complete piece",
+  "role": "original_exercise",
+  "ppq": 960,
+  "durationTicks": 30720,
+  "instrument": {
+    "type": "six_string_guitar",
+    "capo": 0,
+    "maxFret": 22,
+    "strings": [
+      {
+        "number": 1,
+        "openMidi": 64
+      },
+      {
+        "number": 2,
+        "openMidi": 59
+      },
+      {
+        "number": 3,
+        "openMidi": 55
+      },
+      {
+        "number": 4,
+        "openMidi": 50
+      },
+      {
+        "number": 5,
+        "openMidi": 45
+      },
+      {
+        "number": 6,
+        "openMidi": 40
+      }
+    ]
+  },
+  "tempoMap": [
+    {
+      "tick": 0,
+      "bpm": 60
+    }
+  ],
+  "meterMap": [
+    {
+      "tick": 0,
+      "numerator": 4,
+      "denominator": 4
+    }
+  ],
+  "events": [
+    {
+      "id": "n1",
+      "kind": "note",
+      "startTick": 0,
+      "durationTicks": 960,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n2",
+      "kind": "note",
+      "startTick": 960,
+      "durationTicks": 960,
+      "pitchMidi": 65,
+      "string": 1,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n3",
+      "kind": "note",
+      "startTick": 1920,
+      "durationTicks": 1920,
+      "pitchMidi": 67,
+      "string": 1,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n4",
+      "kind": "note",
+      "startTick": 3840,
+      "durationTicks": 960,
+      "pitchMidi": 65,
+      "string": 1,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n5",
+      "kind": "note",
+      "startTick": 4800,
+      "durationTicks": 960,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n6",
+      "kind": "note",
+      "startTick": 5760,
+      "durationTicks": 1920,
+      "pitchMidi": 62,
+      "string": 2,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n7",
+      "kind": "note",
+      "startTick": 7680,
+      "durationTicks": 960,
+      "pitchMidi": 60,
+      "string": 2,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n8",
+      "kind": "note",
+      "startTick": 8640,
+      "durationTicks": 960,
+      "pitchMidi": 62,
+      "string": 2,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n9",
+      "kind": "note",
+      "startTick": 9600,
+      "durationTicks": 960,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n10",
+      "kind": "note",
+      "startTick": 11520,
+      "durationTicks": 960,
+      "pitchMidi": 62,
+      "string": 2,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n11",
+      "kind": "note",
+      "startTick": 12480,
+      "durationTicks": 960,
+      "pitchMidi": 60,
+      "string": 2,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n12",
+      "kind": "note",
+      "startTick": 13440,
+      "durationTicks": 1920,
+      "pitchMidi": 59,
+      "string": 2,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n13",
+      "kind": "note",
+      "startTick": 15360,
+      "durationTicks": 960,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n14",
+      "kind": "note",
+      "startTick": 16320,
+      "durationTicks": 960,
+      "pitchMidi": 67,
+      "string": 1,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n15",
+      "kind": "note",
+      "startTick": 17280,
+      "durationTicks": 960,
+      "pitchMidi": 65,
+      "string": 1,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n16",
+      "kind": "note",
+      "startTick": 18240,
+      "durationTicks": 960,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n17",
+      "kind": "note",
+      "startTick": 19200,
+      "durationTicks": 960,
+      "pitchMidi": 62,
+      "string": 2,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n18",
+      "kind": "note",
+      "startTick": 20160,
+      "durationTicks": 960,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n19",
+      "kind": "note",
+      "startTick": 21120,
+      "durationTicks": 1920,
+      "pitchMidi": 60,
+      "string": 2,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n20",
+      "kind": "note",
+      "startTick": 23040,
+      "durationTicks": 960,
+      "pitchMidi": 59,
+      "string": 2,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n21",
+      "kind": "note",
+      "startTick": 24000,
+      "durationTicks": 960,
+      "pitchMidi": 60,
+      "string": 2,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n22",
+      "kind": "note",
+      "startTick": 24960,
+      "durationTicks": 960,
+      "pitchMidi": 62,
+      "string": 2,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n23",
+      "kind": "note",
+      "startTick": 25920,
+      "durationTicks": 960,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n24",
+      "kind": "note",
+      "startTick": 26880,
+      "durationTicks": 3840,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    }
+  ],
+  "rights": {
+    "status": "user_declared",
+    "author": "Guitar Unhero project (original technical exercise written for this prototype)",
+    "license": null,
+    "allowedUses": [
+      "local_practice",
+      "modify"
+    ],
+    "sourceUri": null,
+    "evidence": "Written for this repository as a beginner study piece; stepwise melody from six notes. Not adapted from an identified song, recording, or tab. Short generic note patterns are not claimed to be globally unique. Not a third-party rights clearance."
+  },
+  "provenance": {
+    "createdAt": "2026-11-03T18:00:00Z",
+    "createdBy": "Guitar Unhero M2 implementation session",
+    "method": "authored",
+    "reviewStatus": "unreviewed",
+    "reviewer": null,
+    "notes": "Original 8-bar melody written for this project using only E4 F4 G4 (string 1) and B3 C4 D4 (string 2), quarter and half notes with one rest, at 60 BPM. Generic stepwise material; not adapted from an identified song. Used by lesson.first-piece.v1."
+  },
+  "transformations": []
+}
