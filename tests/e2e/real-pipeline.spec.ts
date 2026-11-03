@@ -35,3 +35,18 @@ test('wait mode recognizes E4, then gives a specific observation at the F4 targe
   await expect(page.getByTestId('feedback')).toContainText('That sounded like E. The target is F', { timeout: 25_000 });
   await expect(page.getByTestId('transport-state')).toHaveText('Waiting for your note');
 });
+
+test('diagnostics: guided recording of string 1 is analyzed locally and reports latency', async ({ page }) => {
+  await page.goto('/#/diagnostics');
+  await page.getByLabel('Target note').selectOption({ label: 'String 1 open (E4)' });
+  await page.getByTestId('diag-record').click();
+  await expect(page.getByTestId('diag-report')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('diag-report')).toContainText(/matched E4/);
+  const text = await page.getByTestId('diag-report').innerText();
+  const matched = Number(/(\d+) matched E4/.exec(text)?.[1] ?? 0);
+  expect(matched).toBeGreaterThanOrEqual(3);
+  expect(text).not.toMatch(/sounded like another note/);
+  await expect(page.getByTestId('diag-latency')).toContainText(/median \d+ ms/);
+  // Report the headless (not reference-hardware) number for the record.
+  console.log('DIAG latency (headless, fake device):', await page.getByTestId('diag-latency').innerText());
+});

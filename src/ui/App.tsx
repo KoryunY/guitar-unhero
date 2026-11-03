@@ -7,13 +7,14 @@ const Setup = lazy(() => import('./screens/Setup').then((m) => ({ default: m.Set
 const TunerScreen = lazy(() => import('./screens/Tuner').then((m) => ({ default: m.TunerScreen })));
 const Learn = lazy(() => import('./screens/Learn').then((m) => ({ default: m.Learn })));
 const PracticeScreen = lazy(() => import('./screens/Practice').then((m) => ({ default: m.PracticeScreen })));
+const Diagnostics = lazy(() => import('./screens/Diagnostics').then((m) => ({ default: m.Diagnostics })));
 const DataScreen = lazy(() => import('./screens/Data').then((m) => ({ default: m.DataScreen })));
 
-export type Route = { name: 'home' | 'setup' | 'tuner' | 'learn' | 'practice' | 'data'; arg: string | null };
+export type Route = { name: 'home' | 'setup' | 'tuner' | 'learn' | 'practice' | 'diagnostics' | 'data'; arg: string | null };
 
 function parseHash(): Route {
   const [, name = 'home', arg = null] = (window.location.hash || '#/home').split('/');
-  const known = ['home', 'setup', 'tuner', 'learn', 'practice', 'data'];
+  const known = ['home', 'setup', 'tuner', 'learn', 'practice', 'diagnostics', 'data'];
   return { name: (known.includes(name) ? name : 'home') as Route['name'], arg: arg ? decodeURIComponent(arg) : null };
 }
 
@@ -27,6 +28,7 @@ const NAV: { name: Route['name']; label: string }[] = [
   { name: 'tuner', label: 'Tuner' },
   { name: 'learn', label: 'Learn' },
   { name: 'practice', label: 'Practice' },
+  { name: 'diagnostics', label: 'Diagnostics' },
   { name: 'data', label: 'Settings & data' },
 ];
 
@@ -89,6 +91,7 @@ export function App() {
             {route.name === 'tuner' && <TunerScreen />}
             {route.name === 'learn' && <Learn lessonId={route.arg} />}
             {route.name === 'practice' && <PracticeScreen arrangementId={route.arg} />}
+            {route.name === 'diagnostics' && <Diagnostics />}
             {route.name === 'data' && <DataScreen />}
           </Suspense>
         )}

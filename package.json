@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:recordings": "vitest run tests/unit/recordings.test.ts",
     "gen:validators": "node scripts/gen-validators.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm build"
   },

@@ -341,7 +341,7 @@ export class AudioEngine {
       const ch = new MessageChannel();
       this.worklet.port.postMessage({ type: 'port', port: ch.port1 }, [ch.port1]);
       this.worker.postMessage({ type: 'init', sampleRate: ctx.sampleRate, port: ch.port2 }, [ch.port2]);
-      this.worker.onmessage = (e: MessageEvent<{ type: string; frames: PitchFrame[]; attacks: AttackObservation[] }>) => this.onResults(e.data);
+      this.worker.onmessage = (e: MessageEvent<{ type: string; frames: PitchFrame[]; attacks: AttackObservation[]; pcm?: Float32Array; sampleRate?: number }>) => this.onResults(e.data);
       this.worker.onerror = () => this.setMic('error', { state: 'error', title: 'Audio analysis stopped', detail: 'The analysis worker failed. Reload the page and try again.' });
       this.setMic('on');
       return 'on';
@@ -353,7 +353,41 @@ export class AudioEngine {
     }
   }
 
-  private onResults(d: { frames: PitchFrame[]; attacks: AttackObservation[] }): void {
+  private recordResolve: ((r: { pcm: Float32Array; sampleRate: number }) => void) | null = null;
+
+  /** Explicit local recording for diagnostics. The clip stays in this tab unless the user downloads it. */
+  recordClip(seconds: number): Promise<{ pcm: Float32Array; sampleRate: number }> {
+    if (!this.worker) return Promise.reject(new Error('Start listening first.'));
+    this.worker.postMessage({ type: 'record', seconds });
+    return new Promise((resolve) => {
+      this.recordResolve = resolve;
+    });
+  }
+
+  cancelRecording(): void {
+    this.worker?.postMessage({ type: 'cancelRecord' });
+    this.recordResolve = null;
+  }
+
+  /** Map a context time to performance.now() milliseconds (output-clock based; approximate). */
+  contextToPerformanceMs(c: number): number | null {
+    const ctx = this.ctx;
+    if (!ctx) return null;
+    try {
+      const ts = ctx.getOutputTimestamp?.();
+      if (ts && ts.contextTime !== undefined && ts.performanceTime !== undefined && ts.performanceTime > 0) return ts.performanceTime + (c - ts.contextTime) * 1000;
+    } catch {
+      /* fall through */
+    }
+    return performance.now() - (ctx.currentTime - c) * 1000;
+  }
+
+  private onResults(d: { type?: string; frames: PitchFrame[]; attacks: AttackObservation[]; pcm?: Float32Array; sampleRate?: number }): void {
+    if (d.type === 'recording') {
+      this.recordResolve?.({ pcm: d.pcm!, sampleRate: d.sampleRate! });
+      this.recordResolve = null;
+      return;
+    }
     for (const f of d.frames) {
       const blocked = this.isBlocked(f.centerSec);
       this.timeline.add(f.hopStartSec, f.endSec, f.inputQuality, f.inputQuality === 'good' ? null : f.reasonCodes[0] ?? 'poor_signal');
