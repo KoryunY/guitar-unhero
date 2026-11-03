@@ -17,7 +17,11 @@ import { Callout, Segmented, toast, TopBar } from '../kit';
 import { ScoreEditor } from '../components/ScoreEditor';
 import { PracticePlayer } from '../practice/PracticePlayer';
 import { songStatus } from './PracticeLibrary';
-import { AnalyzeView, LevelPlay } from './SongPlay';
+import { AnalyzeView, LevelPlay, saveLevels } from './SongPlay';
+import { importSong, type ImportedSong } from '../../domain/importers';
+import { importedToSource } from '../../domain/fromImport';
+import { buildLevels } from '../../domain/songArrange';
+import { Coach } from '../art';
 
 type RightsChoice = 'own' | 'permission' | 'unsure';
 const RIGHTS: Record<RightsChoice, { title: string; sub: string; rights: () => Rights }> = {
@@ -47,15 +51,29 @@ export function SongScreen({ songId, view }: { songId: string | null; view: stri
 }
 
 // ---------------------------------------------------------------- new song
+type NewKind = 'recording' | 'text' | 'file' | 'notes';
+
 function NewSong() {
   const [title, setTitle] = useState('');
-  const [kind, setKind] = useState<'recording' | 'notes' | 'file'>('recording');
+  const [kind, setKind] = useState<NewKind>('recording');
   const [rightsChoice, setRightsChoice] = useState<RightsChoice>('own');
   const [bpm, setBpm] = useState(80);
   const [bars, setBars] = useState(4);
+  const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  /** Imported notation → three levels saved on the song. */
+  const fromNotation = async (song: SongRecord, imported: ImportedSong, sourceName: string, rights: Rights) => {
+    const { source, warnings } = importedToSource(imported, { arrangementId: `song.${song.id}`, title: song.title, rights, createdBy: `Imported from ${sourceName}`.slice(0, 200) });
+    const levels = buildLevels(source);
+    if (!levels.some((l) => l.score.events.length || l.score.chords?.length)) throw new Error('No notes or chords were found in that.');
+    const next = await saveLevels(song, levels, `Imported from ${sourceName}`);
+    const out: SongRecord = { ...next, source: imported.source, uncertain: [] };
+    if (warnings.length) out.importWarnings = warnings.slice(0, 6);
+    return out;
+  };
 
   const create = async () => {
     setError(null);
@@ -64,10 +82,11 @@ function NewSong() {
       const now = new Date().toISOString();
       const id = newId('song-');
       const rights = RIGHTS[rightsChoice].rights();
-      const song: SongRecord = { id, title: title.trim() || 'My song', assetId: null, mainArrangementId: null, versions: [], anchors: [], alignment: 'none', uncertain: [], createdAt: now, updatedAt: now };
+      let song: SongRecord = { id, title: title.trim() || 'My song', assetId: null, mainArrangementId: null, versions: [], anchors: [], alignment: 'none', uncertain: [], createdAt: now, updatedAt: now };
+      let view = 'play';
       if (kind === 'recording') {
         const file = fileRef.current?.files?.[0];
-        if (!file) throw new Error('Choose an audio file first.');
+        if (!file) throw new Error('Choose a song file first.');
         const ctx = await engine.ensureContext();
         const r = await decodeImport(ctx, file);
         if (!r.ok) throw new Error(IMPORT_FAILURE_TEXT[r.reason]);
@@ -78,28 +97,47 @@ function NewSong() {
         await saveAsset(asset);
         bufferCache.set(asset.id, r.value.buffer);
         song.assetId = asset.id;
+        song.source = 'recording';
         if (!title.trim()) song.title = file.name.replace(/\.[a-z0-9]+$/i, '').slice(0, 80);
-      } else if (kind === 'notes') {
+        view = 'analyze';
+      } else if (kind === 'text') {
+        if (!text.trim()) throw new Error('Paste a tab or a chord sheet first.');
+        const r = await importSong(text, { bpm });
+        if (!r.ok) throw new Error(r.error.message);
+        if (!title.trim() && r.song.title) song.title = r.song.title.slice(0, 80);
+        song = await fromNotation(song, r.song, r.song.source === 'tab' ? 'pasted tab' : 'pasted chords', rights);
+      } else if (kind === 'file') {
+        const file = fileRef.current?.files?.[0];
+        if (!file) throw new Error('Choose a file first.');
+        if (/\.json$/i.test(file.name) || file.type === 'application/json') {
+          const parsed = parseScoreJson(await file.text());
+          if (!parsed.ok) throw new Error(`This score can't be used: ${parsed.issues.slice(0, 3).map((i) => i.message).join(' ')}`);
+          // Keep the file's own provenance/rights; the learner's declaration is recorded alongside.
+          const score: Score = { ...parsed.score, arrangementId: `user.${id}`.slice(0, 120), provenance: { ...parsed.score.provenance, method: 'imported', notes: `Imported from ${file.name}. ${parsed.score.provenance.notes ?? ''}`.slice(0, 4000) } };
+          const check = validateScore(JSON.parse(JSON.stringify(score)));
+          if (!check.ok) throw new Error(check.issues[0]!.message);
+          await saveArrangement(score);
+          song.mainArrangementId = score.arrangementId;
+          song.title = title.trim() || score.title;
+          song.source = 'score_file';
+          song.versions.push({ arrangementId: score.arrangementId, version: score.version, role: score.role, title: score.title, createdAt: now, note: `Imported ${file.name}` });
+        } else {
+          if (file.size > 8 * 1024 * 1024) throw new Error('That file is larger than 8 MB — notation files are usually much smaller. Is it an audio file? Choose “A song recording” instead.');
+          const r = await importSong(new Uint8Array(await file.arrayBuffer()), { fileName: file.name, bpm });
+          if (!r.ok) throw new Error(r.error.message);
+          if (!title.trim()) song.title = (r.song.title ?? file.name.replace(/\.[a-z0-9]+$/i, '')).slice(0, 80);
+          song = await fromNotation(song, r.song, file.name, rights);
+        }
+      } else {
         const score = blankScore({ arrangementId: `user.${id}`, title: song.title, bpm, bars, rights, now: new Date() });
         await saveArrangement(score);
         song.mainArrangementId = score.arrangementId;
+        song.source = 'written';
         song.versions.push({ arrangementId: score.arrangementId, version: 1, role: score.role, title: score.title, createdAt: now, note: 'Empty part created' });
-      } else {
-        const file = fileRef.current?.files?.[0];
-        if (!file) throw new Error('Choose a .json score file first.');
-        const parsed = parseScoreJson(await file.text());
-        if (!parsed.ok) throw new Error(`This score can't be used: ${parsed.issues.slice(0, 3).map((i) => i.message).join(' ')}`);
-        // Keep the file's own provenance/rights; the learner's declaration is recorded alongside.
-        const score: Score = { ...parsed.score, arrangementId: `user.${id}`.slice(0, 120), provenance: { ...parsed.score.provenance, method: 'imported', notes: `Imported from ${file.name}. ${parsed.score.provenance.notes ?? ''}`.slice(0, 4000) } };
-        const check = validateScore(JSON.parse(JSON.stringify(score)));
-        if (!check.ok) throw new Error(check.issues[0]!.message);
-        await saveArrangement(score);
-        song.mainArrangementId = score.arrangementId;
-        song.title = title.trim() || score.title;
-        song.versions.push({ arrangementId: score.arrangementId, version: score.version, role: score.role, title: score.title, createdAt: now, note: `Imported ${file.name}` });
+        view = 'notes';
       }
       await saveSong(song);
-      navigate('song', song.id, kind === 'recording' ? 'timing' : kind === 'notes' ? 'notes' : 'play');
+      navigate('song', song.id, view);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -107,17 +145,21 @@ function NewSong() {
     }
   };
 
+  const OPTIONS = [
+    ['recording', 'A song recording', 'MP3, M4A, WAV… up to 15 minutes. The app works out the beat, chords and tune.', 'wave'],
+    ['text', 'Paste a tab or chords', 'Guitar tab or a chord sheet copied from anywhere.', 'edit'],
+    ['file', 'A notation file', 'MIDI, Guitar Pro (.gp3–.gp), MusicXML, or a Guitar Unhero .json score.', 'folder'],
+    ['notes', 'Write my own notes', 'An empty part you fill in on the string grid.', 'guitar'],
+  ] as const;
+
   return (
-    <section className="stack" style={{ maxWidth: 640, margin: '0 auto' }}>
+    <section className="stack" style={{ maxWidth: 680, margin: '0 auto' }}>
       <TopBar title="Add a song" back={() => navigate('practice')} />
-      <label className="field"><span>Name</span><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="My song" maxLength={80} data-testid="song-title" /></label>
+      <Coach mood="happy"><p>Bring any song. You will get an Easy, a Medium and a Full version to play — same key, your level.</p></Coach>
+      <label className="field"><span>Name</span><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Song name (optional)" maxLength={80} data-testid="song-title" /></label>
       <div className="field"><span>Start from</span>
-        <div className="stack" role="radiogroup" aria-label="Start from">
-          {([
-            ['recording', 'A recording', 'Play along with it, line it up with the beat, or try turning clean guitar into notes.', 'wave'],
-            ['notes', 'Write my own notes', 'An empty part you fill in on the string grid.', 'edit'],
-            ['file', 'A score file (.json)', 'A Guitar Unhero score you were given.', 'folder'],
-          ] as const).map(([k, t, sub, icon]) => (
+        <div className="grid" role="radiogroup" aria-label="Start from" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+          {OPTIONS.map(([k, t, sub, icon]) => (
             <button key={k} type="button" role="radio" aria-checked={kind === k} className="choice" onClick={() => setKind(k)} data-testid={`new-${k}`}>
               <Icon name={icon} />
               <div><div className="c-title">{t}</div><div className="c-sub">{sub}</div></div>
@@ -125,16 +167,25 @@ function NewSong() {
           ))}
         </div>
       </div>
-      {kind !== 'notes' && (
+      {(kind === 'recording' || kind === 'file') && (
         <label className="field">
-          <span>{kind === 'recording' ? `A song (MP3, M4A, WAV…, up to ${MAX_IMPORT_SECONDS / 60} minutes)` : 'Score file'}</span>
-          <input ref={fileRef} type="file" className="input" style={{ paddingTop: 10 }} accept={kind === 'recording' ? 'audio/*,.wav,.mp3,.m4a,.ogg,.flac' : 'application/json,.json'} data-testid="song-file" />
+          <span>{kind === 'recording' ? `Song file (up to ${MAX_IMPORT_SECONDS / 60} minutes)` : 'Notation file'}</span>
+          <input ref={fileRef} type="file" className="input" style={{ paddingTop: 10 }} accept={kind === 'recording' ? 'audio/*,.wav,.mp3,.m4a,.mp4,.ogg,.flac,.aac,.opus,.aif,.aiff' : '.mid,.midi,.kar,.gp,.gp3,.gp4,.gp5,.gpx,.musicxml,.xml,.cho,.chopro,.json,application/json'} data-testid="song-file" />
         </label>
       )}
-      {kind === 'notes' && (
+      {kind === 'text' && (
+        <label className="field">
+          <span>Tab or chord sheet</span>
+          <textarea className="input" rows={10} value={text} onChange={(e) => setText(e.target.value)} data-testid="song-text" spellCheck={false}
+            style={{ fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 14, lineHeight: '20px' }}
+            placeholder={'[Verse]\nEm        C        G        D\n\nor tab:\ne|-----0---3---|\nB|---1---------|\n...'} />
+          <span className="t-caption">Lyrics are ignored and never stored — only the chords, notes and section names are kept.</span>
+        </label>
+      )}
+      {(kind === 'notes' || kind === 'text' || kind === 'file') && (
         <div className="row">
-          <label className="field" style={{ flex: 1 }}><span>Tempo (BPM)</span><input className="input" type="number" min={30} max={200} value={bpm} onChange={(e) => setBpm(Number(e.target.value) || 80)} /></label>
-          <label className="field" style={{ flex: 1 }}><span>Bars</span><input className="input" type="number" min={1} max={64} value={bars} onChange={(e) => setBars(Math.max(1, Math.min(64, Number(e.target.value) || 4)))} /></label>
+          <label className="field" style={{ flex: 1 }}><span>Tempo (BPM{kind !== 'notes' ? ', if the file has none' : ''})</span><input className="input" type="number" min={30} max={240} value={bpm} onChange={(e) => setBpm(Number(e.target.value) || 80)} /></label>
+          {kind === 'notes' && <label className="field" style={{ flex: 1 }}><span>Bars</span><input className="input" type="number" min={1} max={64} value={bars} onChange={(e) => setBars(Math.max(1, Math.min(64, Number(e.target.value) || 4)))} /></label>}
         </div>
       )}
       <div className="field"><span>Whose music is it?</span>
@@ -148,7 +199,7 @@ function NewSong() {
         <span className="t-caption">Everything stays on this device. Nothing is uploaded or shared, and the app does not download songs from the internet.</span>
       </div>
       {error && <Callout kind="bad">{error}</Callout>}
-      <button type="button" className="btn primary block" onClick={create} disabled={busy} data-testid="create-song">{busy ? 'Working…' : 'Create'}</button>
+      <button type="button" className="btn primary big block" onClick={create} disabled={busy} data-testid="create-song">{busy ? 'Working…' : kind === 'recording' ? 'Add and work it out' : 'Create'}</button>
     </section>
   );
 }

@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { useApp } from './AppContext';
 import { voiceLine, type VoiceEvent } from '../learning/voice';
 import { CHAPTERS } from '../learning/chapters';
+import { nextRank, rankFor, RANKS } from '../learning/ranks';
 import { LESSONS } from '../learning/lessons';
 import type { LessonProgress, PracticeSummaryRecord } from '../storage/types';
 
@@ -48,4 +49,20 @@ export function lessonNumber(lessonId: string): number {
 export function daySeed(extra = 0): number {
   const d = new Date();
   return d.getFullYear() * 400 + d.getMonth() * 31 + d.getDate() + extra * 7;
+}
+
+export interface RankProgress {
+  level: number;
+  max: number;
+  title: string;
+  blurb: string;
+  nextTitle: string | null;
+  fraction: number;
+}
+
+/** Rank badge data for the UI. */
+export function rankProgress(completed: ReadonlySet<string>): RankProgress {
+  const r = rankFor(completed);
+  const n = nextRank(completed);
+  return { level: RANKS.indexOf(r) + 1, max: RANKS.length, title: r.title, blurb: r.blurb, nextTitle: n?.rank.title ?? null, fraction: n?.progress ?? 1 };
 }

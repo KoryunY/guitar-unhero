@@ -253,6 +253,7 @@ p { margin: 0 0 12px; }
 .card.stage .btn.primary { background: linear-gradient(90deg, var(--hot-1), var(--hot-2)); color: #fff; border: 0; text-shadow: 0 1px 2px rgb(0 0 0 / 35%); }
 .card.stage .meta { display: flex; gap: 8px; flex-wrap: wrap; }
 .card.stage .meta span { background: rgb(0 0 0 / 45%); border: 1px solid rgb(255 255 255 / 20%); border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 700; }
+@media (max-width: 600px) { .card.stage .stage-guitar { opacity: 0.55; } }
 .beam { animation: sweep 6s ease-in-out infinite alternate; transform-origin: top center; transform-box: fill-box; }
 @keyframes sweep { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
 .card.tight { padding: 14px 16px; }
@@ -451,6 +452,9 @@ table.events tr.next td { font-weight: 700; }
 .mascot.mood-rock { animation: headbang 0.5s ease-in-out 4 alternate; }
 @keyframes headbang { from { transform: rotate(-6deg); } to { transform: rotate(8deg) translateY(2px); } }
 
+.joke-aside { margin: 0; padding: 10px 14px; border-left: 4px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius: 0 12px 12px 0; font-style: italic; font-size: 15px; line-height: 22px; }
+.tabblock pre { margin: 0; padding: 12px 14px; border-radius: var(--radius-s); background: #1b1320; color: #f3eff8; font: 600 15px/22px ui-monospace, 'SF Mono', Menlo, Consolas, monospace; overflow-x: auto; }
+
 /* Dashboard */
 .dash { display: grid; gap: 16px; }
 @media (min-width: 1024px) { .dash { grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); align-items: start; } }
@@ -514,6 +518,9 @@ table.events tr.next td { font-weight: 700; }
 .level-pills button[aria-pressed='true'] { border-color: var(--primary); background: var(--primary-soft); box-shadow: var(--glow); }
 
 /* Headstock tuner */
+.tuner-layout { display: grid; gap: 16px; }
+.tuner-side { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 900px) { .tuner-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
 .headstock { display: block; width: 100%; max-width: 360px; margin: 0 auto; }
 .headstock .peg { cursor: pointer; }
 .headstock .peg:focus-visible { outline: none; }

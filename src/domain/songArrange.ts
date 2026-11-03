@@ -63,6 +63,8 @@ export interface SongSource {
   providerVersion?: string | null;
   sourceAudio?: SourceAudio;
   now?: Date;
+  /** Rhythm was guessed (ASCII tab, chord sheet): notes are checked for pitch only. */
+  rhythmApproximate?: boolean;
 }
 
 export interface LevelResult {
@@ -92,7 +94,7 @@ export function skyline(notes: readonly SourceNote[]): SourceNote[] {
 
 const PROFILE: Record<Level, FingeringProfile> = { easy: BEGINNER_PROFILE, medium: OPEN_POSITION_PROFILE, full: FULL_NECK_PROFILE };
 
-function melodyFor(level: Level, line: SourceNote[], capo: number, log: Transformation[], notes: string[]): NoteEvent[] {
+function melodyFor(level: Level, line: SourceNote[], capo: number, log: Transformation[], notes: string[], rhythmApproximate = false): NoteEvent[] {
   if (!line.length) return [];
   let kept = line;
   if (level === 'easy') {
@@ -155,14 +157,14 @@ function melodyFor(level: Level, line: SourceNote[], capo: number, log: Transfor
       finger: p.fret === 0 ? null : p.finger,
       sourceEventIds: [],
       // Legato notes have no clear pick attack: only the pitch is checked.
-      assessment: { pitch: true, attack: !legato, sustain: false },
+      assessment: { pitch: true, attack: !legato && !rhythmApproximate, sustain: false },
     };
     if (level === 'full' && n.techniques?.length) ev.techniques = n.techniques.slice(0, 4);
     return ev;
   });
 }
 
-function chordTrack(level: Level, chords: readonly SourceChord[], voiced: VoicedChord[]): ChordEvent[] {
+function chordTrack(level: Level, chords: readonly SourceChord[], voiced: readonly (VoicedChord | undefined)[]): ChordEvent[] {
   const pattern = LEVEL_TEXT[level].pattern;
   const out: ChordEvent[] = [];
   chords.forEach((c, i) => {
@@ -211,7 +213,8 @@ export function buildLevels(src: SongSource): LevelResult[] {
     const prog = voiceProgression(chords, level);
     if (prog.capo) notes.push(`Capo on fret ${prog.capo}: easier shapes, same sound as the original chords.`);
     notes.push(...prog.notes);
-    const events = melodyFor(level, line, prog.capo, log, notes);
+    const events = melodyFor(level, line, prog.capo, log, notes, src.rhythmApproximate);
+    if (src.rhythmApproximate && events.length) notes.push('The rhythm was guessed from the tab, so only the notes are checked, not the timing.');
     const track = chordTrack(level, chords, prog.voiced);
     const base = blankScore({ arrangementId: `${src.arrangementId}.${level}`.slice(0, 120), title: `${src.title} (${LEVEL_TEXT[level].title.toLowerCase()})`, bpm: src.bpm, bars: durationTicks / BAR_TICKS, rights: src.rights, createdBy: src.createdBy, now: src.now });
     const score: Score = {

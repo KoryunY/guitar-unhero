@@ -129,7 +129,7 @@ export function StageArt({ className, guitar = true }: { className?: string; gui
         <path key={x} d={`M${x} 138l-3-16 4 0 2-6 2 6 4 0-3 16z`} fill="#000" opacity="0.55" />
       ))}
       {guitar && (
-        <g transform="translate(206 34) rotate(-18)">
+        <g className="stage-guitar" transform="translate(206 34) rotate(-18)">
           <rect x="88" y="36" width="96" height="9" rx="2" fill="#5a3a22" />
           {Array.from({ length: 9 }, (_, i) => <rect key={i} x={98 + i * 9.5} y="36" width="1.5" height="9" fill="#d9d4cc" opacity="0.8" />)}
           <path d="M182 33l22-4 2 22-24-2z" fill="#1b1320" />

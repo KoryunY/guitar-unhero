@@ -35,5 +35,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   // ignoreVary: module scripts carry an Origin header the precache request did not.
-  event.respondWith(caches.match(req, { ignoreVary: true }).then((hit) => hit || fetch(req)));
+  // Built files that were not precached (e.g. the Guitar Pro reader) are kept after first use.
+  event.respondWith(
+    caches.match(req, { ignoreVary: true }).then(
+      (hit) =>
+        hit ||
+        fetch(req).then((res) => {
+          if (res.ok && url.origin === self.location.origin && url.pathname.includes('/assets/')) caches.open(CACHE).then((c) => c.put(req, res.clone()));
+          return res;
+        }),
+    ),
+  );
 });

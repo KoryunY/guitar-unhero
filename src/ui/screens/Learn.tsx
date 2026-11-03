@@ -12,9 +12,18 @@ import { PracticePlayer } from '../practice/PracticePlayer';
 import { EarComparePanel, QuizPanel, SequencePanel, StrumAlongPanel, TapPulsePanel } from '../components/StepPanels';
 import { Icon } from '../icons';
 import { toast, TopBar } from '../kit';
-import { CHAPTERS } from '../../learning/chapters';
-import { RankBadge, TIER_INFO, VenueArt } from '../art';
-import { completedLessonIds, rankProgress } from '../coach';
+import { CHAPTERS, chapterOf as chapterOfLesson, isBossFight, METAL_CHAPTER_ID } from '../../learning/chapters';
+import { Coach, RankBadge, StrumPattern, TIER_INFO, VenueArt } from '../art';
+import { completedLessonIds, rankProgress, useJoke } from '../coach';
+
+const TECHNIQUE_LABEL: Record<string, string> = { bend: 'Bend', slide: 'Slide', hammer_on: 'Hammer-on', pull_off: 'Pull-off', vibrato: 'Vibrato', palm_mute: 'Palm mute', double_stop: 'Double stop', octaves: 'Octaves', thumb_over: 'Thumb over' };
+
+function techniqueText(t: NonNullable<LessonStep['technique']>): string {
+  const on = t.string ? `string ${t.string}` : t.strings ? `strings ${t.strings.join(' + ')}` : '';
+  if (t.kind === 'bend') return `${on}: fret ${t.fromFret ?? '?'} → push up ${t.semitones === 1 ? 'a half step' : 'a whole step'}${t.toFret ? ` (to the pitch of fret ${t.toFret})` : ''}`;
+  if (t.kind === 'slide' || t.kind === 'hammer_on' || t.kind === 'pull_off') return `${on}: fret ${t.fromFret ?? 0} → fret ${t.toFret ?? '?'}`;
+  return on;
+}
 
 function evidenceBadge(e: Evidence | null | undefined) {
   if (e === 'sensor') return <span className="badge good"><Icon name="mic" size={12} /> Heard</span>;
@@ -71,7 +80,7 @@ export function Learn({ lessonId }: { lessonId: string | null }) {
                   const p = lessons[l.lessonId];
                   const isDone = done.has(l.lessonId);
                   const isCurrent = current?.lessonId === l.lessonId;
-                  const boss = /boss|review|etude|étude/i.test(l.title);
+                  const boss = isBossFight(l.lessonId);
                   return (
                     <a key={l.lessonId} href={`#/learn/${l.lessonId}`} className={`pathnode${isDone ? ' done' : ''}${isCurrent ? ' current' : ''}${boss ? ' boss' : ''}`} aria-current={isCurrent ? 'step' : undefined}>
                       <span className="dot">{isDone ? <Icon name="check" /> : boss ? '★' : first + i + 1}</span>
@@ -97,7 +106,9 @@ export function Learn({ lessonId }: { lessonId: string | null }) {
 }
 
 function LessonRunner({ lesson }: { lesson: Lesson }) {
-  const { lessons, settings, recordStep, completeLesson } = useApp();
+  const { lessons, settings, recordStep, completeLesson, updateSettings } = useApp();
+  const startJoke = useJoke(isBossFight(lesson.lessonId) ? 'boss_fight' : chapterOfLesson(lesson.lessonId)?.id === METAL_CHAPTER_ID ? 'metal_unlocked' : 'lesson_start', lesson.title.length);
+  const endJoke = useJoke(lesson.nextLessonId ? 'lesson_complete' : 'chapter_complete', lesson.lessonId.length);
   const progress = lessons[lesson.lessonId];
   const done = new Set(progress?.completedSteps.map((s) => s.stepId) ?? []);
   const firstOpen = lesson.steps.findIndex((s) => !done.has(s.id));
@@ -130,13 +141,32 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
       <p className="t-caption" style={{ marginBottom: 4 }}>Step {idx + 1} of {lesson.steps.length}</p>
       <h2 id="lesson-h" className="t-title" ref={headingRef} tabIndex={-1} style={{ marginBottom: 12 }}>{step.title}</h2>
       <div className="stack">
+        {step.tuning === 'drop-d' && (
+          <div className="row"><a className="chip on" href="#/tune" onClick={() => updateSettings({ tuning: 'drop_d' })}><Icon name="tune" size={16} /> Drop D — open the tuner</a></div>
+        )}
         <div>{step.body.map((p, i) => <p key={i}>{p}</p>)}</div>
+        {step.funny && settings.voice !== 'plain' && idx !== 0 && <p className="joke-aside">{step.funny}</p>}
+        {step.technique && (
+          <div className="card tight row nowrap" style={{ gap: 12 }} data-testid="technique">
+            <span className="badge" style={{ fontSize: 13 }}>{TECHNIQUE_LABEL[step.technique.kind] ?? step.technique.kind}</span>
+            <span className="spacer t-small">{techniqueText(step.technique)}</span>
+            <span className="t-caption">Not checked — use your ears</span>
+          </div>
+        )}
+        {step.tab && (
+          <figure className="tabblock" style={{ margin: 0 }}>
+            <pre aria-label={`Tab: ${step.tab.join(' / ')}`}>{step.tab.join('\n')}</pre>
+            <figcaption className="t-caption">Tab: string 1 (high e) on top; numbers are frets.</figcaption>
+          </figure>
+        )}
+        {step.strum?.pattern && <div className="stack" style={{ gap: 4 }}><span className="t-small muted" style={{ fontWeight: 700 }}>Strum pattern{step.strum.feel === 'shuffle' ? ' · shuffle feel' : ''}</span><StrumPattern pattern={step.strum.pattern} /></div>}
         {step.diagram && step.kind !== 'strum-along' && <div className="card tight"><FretDiagram diagram={step.diagram} leftHanded={settings.handedness === 'left'} /></div>}
         {step.phases && (
           <ol className="phases" aria-label="Movement phases">
             {step.phases.map((ph) => <li key={ph.label}><strong>{ph.label}</strong>{ph.text}</li>)}
           </ol>
         )}
+        {idx === 0 && <Coach mood={isBossFight(lesson.lessonId) ? 'rock' : 'happy'} joke={startJoke}><p>{lesson.learningObjective}</p></Coach>}
         {step.demoMidis && <DemoButton midis={step.demoMidis} label={step.demoLabel ?? 'Hear it'} />}
 
         {step.kind === 'attempt' && step.attempt && <AttemptPanel step={step} onComplete={finishStep} evidenceSource={evidenceSource} />}
@@ -170,8 +200,9 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
                 Next: {findLesson(lesson.nextLessonId)?.title ?? 'next lesson'}
               </button>
             )}
+            <Coach mood="rock" joke={endJoke}><p>{lesson.nextLessonId ? 'Lesson done. Short rests help it stick.' : 'That was the last lesson on the path. Now take a song you love through Easy, Medium and Full.'}</p></Coach>
             {!lesson.nextLessonId && (
-              <button type="button" className="btn primary block" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('practice', 'piece.morning-steps'); }}>Practise “Morning Steps”</button>
+              <button type="button" className="btn primary block" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('practice'); }}>Play your songs</button>
             )}
             <button type="button" className="btn tonal block" onClick={() => setIdx(0)}>Repeat this lesson</button>
             <button type="button" className="btn outline block" onClick={() => { completeLesson(lesson.lessonId, bestEvidence()); navigate('today'); }}>Finish for today</button>

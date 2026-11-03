@@ -7,6 +7,7 @@ import { midiName, pitchClassName } from '../../domain/tuning';
 import type { Evidence } from '../../storage/types';
 import { useApp } from '../AppContext';
 import { FretDiagram } from './FretDiagram';
+import { ChordBox, StrumPattern } from '../art';
 import { InputMeter } from './InputMeter';
 import { ListenControl } from './ListenControl';
 
@@ -263,13 +264,19 @@ export function StrumAlongPanel({ strum, leftHanded }: { strum: NonNullable<Less
       <div className="row">
         <button type="button" className="btn primary" onClick={start} data-testid="strum-start">{pos ? 'Restart' : 'Start'}</button>
         {pos && <button type="button" className="btn tonal" onClick={stop}>Stop</button>}
-        <span className="t-small muted">{strum.bpm} BPM · strum on beat 1</span>
+        <span className="t-small muted">{strum.bpm} BPM · {strum.pattern ? 'follow the arrows' : 'strum on beat 1'}</span>
       </div>
       <div aria-live="polite" style={{ fontSize: '2rem', fontWeight: 800, margin: '10px 0' }} data-testid="strum-now">
         {pos === null ? `${strum.bars.join(' · ')}` : pos.bar < 0 ? `Count-in ${pos.beat}` : `${cur} — beat ${pos.beat}${pos.beat === 1 ? ' STRUM' : ''}`}
       </div>
       {changing && <p className="callout" role="status">Prepare: change to {next} now.</p>}
-      {shape && <FretDiagram diagram={chordDiagram(shape)} leftHanded={leftHanded} />}
+      {strum.pattern && <StrumPattern pattern={strum.pattern} active={pos && pos.bar >= 0 ? (pos.beat - 1) * 2 : -1} />}
+      {shape && (
+        <div className="row" style={{ alignItems: 'flex-start', gap: 16 }}>
+          <ChordBox name={shape.name} frets={[...shape.lowToHigh].reverse().map((f) => (f === 'x' ? null : f))} fingers={[...shape.fingersLowToHigh].reverse()} leftHanded={leftHanded} size={140} />
+          <div className="spacer" style={{ minWidth: 240 }}><FretDiagram diagram={chordDiagram(shape)} leftHanded={leftHanded} /></div>
+        </div>
+      )}
     </div>
   );
 }

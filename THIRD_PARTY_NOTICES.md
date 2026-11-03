@@ -14,6 +14,9 @@ Runtime dependencies bundled into the web app (versions pinned in `package.json`
 | json-schema-traverse | 1.0.0 | MIT |
 | require-from-string | 2.0.2 | MIT |
 | @mediapipe/tasks-vision (optional camera experiment; JS + WASM copied to `public/mediapipe` at build) | 1.1.1 | Apache-2.0 |
+| @coderline/alphatab (Guitar Pro reader only, loaded on demand; bundles Haxe runtime, SharpZipLib and NVorbis code under MIT and libvorbis under BSD-3-Clause) | 1.8.4 | MPL-2.0 (source available at github.com/CoderLine/alphaTab; unmodified) |
+| @fontsource/bebas-neue (display font files, self-hosted) | 5.3.0 | OFL-1.1 (font), MIT (package) |
+| @fontsource/metal-mania (logo/rank font files, self-hosted) | 5.3.0 | OFL-1.1 (font), MIT (package) |
 
 Model weights (optional camera experiment):
 

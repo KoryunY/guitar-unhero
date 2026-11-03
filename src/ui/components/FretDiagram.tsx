@@ -9,6 +9,9 @@ import type { StringNumber } from '../../domain/score';
  */
 export function FretDiagram({ diagram, leftHanded }: { diagram: Diagram; leftHanded: boolean }) {
   const frets = 5;
+  // Shapes high up the neck show frets baseFret … baseFret + 4 instead of the nut.
+  const base = Math.max(1, diagram.baseFret ?? 1);
+  const rel = (fret: number) => (fret === 0 ? 0 : fret - base + 1);
   const W = 560, H = 214, left = 104, right = 18, top = 26, gap = 29;
   const fretW = (W - left - right) / frets;
   // The label margin (and nut) sit on the left for right-handed display, on the right when mirrored.
@@ -41,18 +44,18 @@ export function FretDiagram({ diagram, leftHanded }: { diagram: Diagram; leftHan
           </linearGradient>
         </defs>
         <rect x={leftHanded ? woodX - 8 : woodX} y={y0 - 12} width={woodW} height={gap * 5 + 24} rx="6" fill="url(#fd-wood)" />
-        {[3, 5].filter((f) => f <= frets).map((f) => (
-          <circle key={f} cx={(xOfFret(f) + xOfFret(f - 1)) / 2} cy={(y0 + y5) / 2} r="7" fill="#efe6d2" opacity="0.85" />
+        {[3, 5, 7, 9, 12, 15].filter((f) => f >= base && f <= base + frets - 1).map((f) => (
+          <circle key={f} cx={(xOfFret(rel(f)) + xOfFret(rel(f) - 1)) / 2} cy={(y0 + y5) / 2} r="7" fill="#efe6d2" opacity="0.85" />
         ))}
         {Array.from({ length: frets + 1 }, (_, f) => (
           <g key={f}>
-            {f === 0 ? (
+            {f === 0 && base === 1 ? (
               <rect x={xOfFret(0) - 5} y={y0 - 12} width="10" height={gap * 5 + 24} rx="2" fill="#f4ecd8" stroke="#bfb39a" />
             ) : (
               <rect x={xOfFret(f) - 2} y={y0 - 12} width="4" height={gap * 5 + 24} fill="url(#fd-fret)" />
             )}
             {f > 0 && (
-              <text x={(xOfFret(f) + xOfFret(f - 1)) / 2} y={H - 4} textAnchor="middle" fontSize="15" fontWeight="600" fill="var(--muted)">{f}</text>
+              <text x={(xOfFret(f) + xOfFret(f - 1)) / 2} y={H - 4} textAnchor="middle" fontSize="15" fontWeight="600" fill="var(--muted)">{base + f - 1}{base > 1 && f === 1 ? 'fr' : ''}</text>
             )}
           </g>
         ))}
@@ -71,7 +74,7 @@ export function FretDiagram({ diagram, leftHanded }: { diagram: Diagram; leftHan
           );
         })}
         {dots.map((d) => {
-          const cx = xOfFret(d.fret) + (leftHanded ? 1 : -1) * fretW * 0.28; // fingertip just behind the fret wire
+          const cx = xOfFret(rel(d.fret)) + (leftHanded ? 1 : -1) * fretW * 0.28; // fingertip just behind the fret wire
           const cy = top + (d.string - 1) * gap;
           return (
             <g key={`${d.string}-${d.fret}`}>

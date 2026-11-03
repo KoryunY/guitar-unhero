@@ -87,6 +87,12 @@ export function LevelPlay({ song, scores, buffer, onReview }: { song: SongRecord
           </div>
         </div>
       )}
+      {!!song.importWarnings?.length && (
+        <details className="card tight t-small">
+          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Notes about this import ({song.importWarnings.length})</summary>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>{song.importWarnings.map((w) => <li key={w}>{w}</li>)}</ul>
+        </details>
+      )}
       {score.instrument.capo > 0 && (
         <Callout kind="info">Put a capo on fret {score.instrument.capo}. Frets below are counted from the capo, so the easy shapes sound like the real chords.</Callout>
       )}

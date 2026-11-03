@@ -22,7 +22,7 @@ function Headstock({ str, tuned, names, onPick, locked }: { str: StringNumber; t
   };
   const nutX = (s: StringNumber) => 96 + (6 - s) * 9.6;
   return (
-    <svg className="headstock" viewBox="0 0 240 300" aria-hidden="true">
+    <svg className="headstock" viewBox="-20 0 280 300" aria-hidden="true">
       <defs>
         <linearGradient id="hs-wood" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#6b4329" />
@@ -46,7 +46,7 @@ function Headstock({ str, tuned, names, onPick, locked }: { str: StringNumber; t
             <circle cx={p.x} cy={p.y} r="7" fill="#c9ccd1" stroke="#1b1320" strokeWidth="2" />
             <circle className="knob" cx={knobX} cy={p.y} r="22" fill={color} stroke="#1b1320" strokeWidth="2.5" />
             <text x={knobX} y={p.y + 7} textAnchor="middle" fontSize="20" fontWeight="900" fill={tuned.has(s) || on ? '#fff' : '#1b1320'}>{names[s]}</text>
-            <text x={knobX} y={p.y + 36} textAnchor="middle" fontSize="12" fontWeight="700" fill="var(--muted)">{tuned.has(s) ? '✓' : s}</text>
+            {tuned.has(s) && <text x={knobX + p.side * 34} y={p.y + 7} textAnchor="middle" fontSize="20" fontWeight="900" fill="var(--correct)">✓</text>}
           </g>
         );
       })}
@@ -182,6 +182,7 @@ export function TunerScreen() {
       {settings.advanced && (
         <Segmented label="Tuner mode" value={mode} options={[{ value: 'string', label: 'Guitar strings' }, { value: 'chromatic', label: 'Any note' }]} onChange={setMode} />
       )}
+      <div className="tuner-layout">
       <div className="card stack" style={{ alignItems: 'stretch' }}>
         <div className="tuner-note" aria-hidden="true" style={{ color: locked ? 'var(--correct)' : undefined }}>
           {reading?.noteName ? pitchClassName(Math.round(reading.midiFloat ?? 0)) : mode === 'string' ? pitchClassName(openMidi(str)) : '–'}
@@ -195,6 +196,7 @@ export function TunerScreen() {
       </div>
       {mode === 'string' && (
         <>
+          <div className="tuner-side">
           <Headstock str={str} tuned={tuned} locked={locked} onPick={setStr} names={{ 1: pitchClassName(openMidi(1)), 2: pitchClassName(openMidi(2)), 3: pitchClassName(openMidi(3)), 4: pitchClassName(openMidi(4)), 5: pitchClassName(openMidi(5)), 6: pitchClassName(openMidi(6)) }} />
           <div className="string-chips" role="group" aria-label="String to tune">
             {ORDER.map((s) => (
@@ -205,8 +207,10 @@ export function TunerScreen() {
             ))}
           </div>
           <p className="t-small muted" style={{ margin: 0 }}>Thickest string (6) on the left. Turn a peg a little at a time and pluck again. If the note looks far away, check you plucked the right string — big turns can snap a string.</p>
+          </div>
         </>
       )}
+      </div>
       <div className="row">
         <button type="button" className="btn tonal" onClick={() => void playRef()} disabled={refPlaying}>
           <Icon name="volume" size={20} />{refPlaying ? 'Playing…' : 'Hear the right note'}

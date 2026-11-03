@@ -164,6 +164,8 @@ export interface SongRecord {
   levels?: Partial<Record<'easy' | 'medium' | 'full', { arrangementId: string; version: number }>>;
   /** Where the notes came from. */
   source?: 'recording' | 'tab' | 'chord_sheet' | 'midi' | 'musicxml' | 'guitar_pro' | 'written' | 'score_file';
+  /** Plain-language notes from importing a tab/MIDI/… file. */
+  importWarnings?: string[];
   /** Summary of the automatic analysis of a recording. */
   analysis?: { bpm: number; key: string; chordCount: number; noteCount: number; warnings: string[]; analyzedAt: string; reviewed: boolean };
   /** Raw transcription leftovers to show as uncertain regions in review. */

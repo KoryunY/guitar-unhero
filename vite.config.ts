@@ -50,7 +50,12 @@ function offlineServiceWorker(): Plugin {
       // Built files + small public files. The optional camera model/WASM (~21 MB) are
       // cached only when the learner turns hand tracking on.
       const publicFiles = ['manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png'];
-      const files = [...Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'sw.js'), ...publicFiles];
+      // The Guitar Pro reader (alphaTab, ~300 KB gzipped) is also cached on first use only.
+      const lazyOnly = (f: string) => {
+        const o = bundle[f];
+        return !!o && o.type === 'chunk' && Object.keys(o.modules).some((m) => m.includes('@coderline/alphatab'));
+      };
+      const files = [...Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'sw.js' && !lazyOnly(f)), ...publicFiles];
       const version = createHash('sha256').update(files.sort().join('|')).digest('hex').slice(0, 12);
       const source = readFileSync(fileURLToPath(new URL('./src/offline/sw-template.js', import.meta.url)), 'utf8')
         .replace('__VERSION__', version)
