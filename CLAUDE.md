@@ -1,19 +1,19 @@
 # CLAUDE.md — Guitar Unhero
 
-Current milestone: **M2 complete (software); hardware checks pending**. Next: owner's hardware feedback, then M3 (see `HANDOFF.md`). Spec: `Documents/GUITAR-UNHERO-MASTER-SPEC.md` (use `Documents/` wherever the spec says `docs/`).
+Current milestone: **M5 complete (software, experiments gated); hardware checks pending**. Next: owner's real-guitar feedback, native-wrapper readiness (see `HANDOFF.md`). Spec: `Documents/GUITAR-UNHERO-MASTER-SPEC.md` (use `Documents/` wherever the spec says `docs/`).
 
 ## Commands
 `pnpm install` · `pnpm dev` · `pnpm typecheck` · `pnpm test` · `pnpm build` · `pnpm test:e2e` · `pnpm check` · `pnpm gen:validators` (after editing a schema) · `pnpm test:recordings`
 
 ## Layout (single Vite app; modules are directories)
-- `src/domain` — score types, `validate.ts` (precompiled schema validator in `src/generated/` + semantic checks), `tuning.ts`
-- `src/transport` — `tempo.ts` (tick/sec/segment maps), `transport.ts` (pure state machine), `scheduler.ts` (lookahead)
+- `src/domain` — score types, `validate.ts` (precompiled validator in `src/generated/` + semantic checks), `tuning.ts`, `fingering.ts` (Viterbi planner), `edit.ts` (immutable edits/versions), `arrange.ts` (easy versions), `alignment.ts` (tap-tempo, anchors)
+- `src/transport` — `timemap.ts` (constant tempo / alignment anchors), `tempo.ts` (segments), `transport.ts` (pure state machine, backing items), `scheduler.ts` (lookahead)
 - `src/audio` — `dsp/` (FFT-YIN, `analyzer.ts` onsets/attacks, Karplus–Strong synth), `tuner.ts`, `calibration.ts`, `engine.ts` (AudioContext, buses, mic), `capture-processor.js` (worklet), `analysis.worker.ts`
 - `src/assessment` — `matcher.ts` (fixed + wait), `timeline.ts` (coverage), `summary.ts`, `guidePolicy.ts`
 - `src/learning` — `lessons.ts` (curriculum data, chord shapes, feedback text), `adaptation.ts`, `retention.ts`, `pulse.ts`, `ear.ts`; `src/content` — bundled original scores
-- `src/audio/diagnostics.ts` + `ui/screens/Diagnostics.tsx` — guided local recordings; `src/offline` — service worker
+- `src/audio/diagnostics.ts` + `ui/screens/Diagnostics.tsx` (Mic test lab); `src/audio/importAudio.ts`, `transcribe.ts` (+ worker) for songs; `src/vision` (camera geometry, MediaPipe wrapper); `src/offline` — service worker
 - `src/storage` — IndexedDB (`db.ts`), export/import (`exchange.ts`)
-- `src/ui` — React screens; `ui/practice/controller.ts` glues transport+matcher+engine
+- `src/ui` — `App.tsx` (routes, tab bar/rail, status chip), `kit.tsx` + `icons.tsx` (design system), `styles.css` (tokens), screens (Today, Welcome, Learn, PracticeLibrary, Practice, Song, Tuner, Settings, Setup, Diagnostics, Data, Camera); `ui/practice/controller.ts` glues transport+matcher+engine
 - `tests/unit` (Vitest, node), `tests/e2e` (Playwright; `real-pipeline` feeds a synthetic WAV to Chromium's fake mic)
 
 ## Invariants (do not break)
@@ -29,4 +29,7 @@ Current milestone: **M2 complete (software); hardware checks pending**. Next: ow
 - Chord completeness/changes are never assessed; chords are checked one string at a time.
 - Never trust a pitch without energy at its fundamental (two ringing notes fake a low "missing fundamental").
 - Retained/adaptation use microphone evidence only.
+- Unreviewed transcription candidates are never assessed; easy versions never change the key.
+- Camera evidence never grades and never claims contact, string, pressure or exact fret.
+- Developer tools live behind Settings → Advanced tools; beginner-facing copy stays plain.
 - Don't weaken tests or acceptance criteria to get green.

@@ -1,12 +1,12 @@
 # Guitar Unhero
 
-An encouraging guitar teacher and real-guitar practice game. Local-first browser prototype (milestone **M2**): tuner, a nine-lesson path from "meet the guitar" to your first complete piece, Em/Am chords, ear training, a six-lane practice highway, honest microphone feedback, recall practice and saved progress — also offline after the first visit. No account, no cloud, no AI service — audio never leaves your computer.
+A patient guitar teacher for your real guitar — local-first, works offline, nothing leaves your device. Prototype through milestone **M5**: tuner, a 14-lesson path from "meet the guitar" to playing a complete piece from memory, Em/Am chords, ear training, a practice player readable from across the room, your own songs (recording + notes + easy versions), experimental transcription of clean guitar recordings, and an experimental camera view.
 
-> Prototype status: software checks pass in a headless cloud browser; **physical guitar/microphone accuracy has not been measured yet** (see `Documents/ACCEPTANCE.md`). Lessons are unreviewed drafts.
+> Status: all automated checks pass in a headless cloud browser. **Real guitar/mic/camera accuracy has not been measured yet** (see `Documents/ACCEPTANCE.md`). Lessons are drafts not yet reviewed by a human teacher.
 
 ## Install and run
 
-Requirements: Node.js ≥ 22.12, pnpm 10 (`corepack enable` provides it), current desktop **Chrome or Edge** (primary target: Windows).
+Requirements: Node.js ≥ 22.12, pnpm 10 (`corepack enable`), current Chrome or Edge (desktop or Android).
 
 ```bash
 pnpm install
@@ -16,67 +16,48 @@ pnpm install
 pnpm dev
 ```
 
-Open <http://localhost:5173>. The microphone only works on `localhost` or `https://`.
+Open <http://localhost:5173>. The microphone and camera only work on `localhost` or `https://`.
 
-Production build (served locally):
+Production build (offline-capable, installable — "Install app" in the browser menu):
 
 ```bash
 pnpm build && pnpm preview
 ```
 
-then open <http://localhost:4173>.
+then open <http://localhost:4173>. To use it on your phone, serve it over HTTPS on your network (for example with a tunnel) — phones block microphones on plain-http network addresses.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `pnpm dev` | Vite dev server on :5173 |
-| `pnpm typecheck` | TypeScript, strict |
-| `pnpm test` | Vitest unit/DSP/robustness/storage tests (107) |
-| `pnpm build` | Typecheck + production build to `dist/` (adds a CSP) |
-| `pnpm preview` | Serve `dist/` on :4173 |
-| `pnpm test:e2e` | Playwright browser tests (24, incl. axe accessibility and offline); builds and serves automatically |
-| `pnpm test:recordings` | Evaluate your own guitar recordings saved from Diagnostics |
+| `pnpm dev` | Dev server on :5173 (copies the camera WASM first) |
+| `pnpm check` | TypeScript + 141 unit tests + production build |
+| `pnpm test:e2e` | 31 Playwright browser tests (accessibility, offline, songs, transcription, camera, real audio pipeline) |
+| `pnpm test:recordings` | Evaluate your own guitar recordings saved from the Mic test lab |
 | `pnpm gen:validators` | Regenerate precompiled JSON-schema validators after a schema change |
-| `pnpm check` | typecheck + unit tests + build |
 
-Playwright uses the installed Chromium. If your machine has none: `pnpm exec playwright install chromium`.
+Playwright uses the installed Chromium; if your machine has none: `pnpm exec playwright install chromium`.
 
-## Supported setup
+## Using it
 
-- Standard six-string guitar in standard tuning (E2 A2 D3 G3 B3 E4). **String 1 = thinnest/high E, string 6 = thickest/low E.**
-- Desktop Chrome/Edge, wired headphones recommended (the app mutes its guide notes on speakers so it never “hears itself”).
-- A built-in or USB microphone, or an audio interface. Tablet layout is responsive but untested; phones are unsupported.
-- No microphone? Use **Continue without listening** (self-checks, nothing scored) or the persistently labeled **Simulation** (shows how feedback works; never counts as real assessment).
+- **Today** — one clear next step, a warm-up, last time's suggestion.
+- **Learn** — 14 short lessons in four chapters: Getting started → Your first piece (*Morning Steps*, then playing it from memory) → Chords (one string at a time) → Ears and memory.
+- **Practice** — pieces and exercises, plus **Your songs**: add a recording to play along with (line it up by tapping the beat), write notes on a string grid, make easier versions, or (experimental) turn a clean single-note guitar recording into draft notes you review.
+- **Tune** — big note, needle, "Too low — tighten / Too high — loosen", moves to the next string when one is in tune.
+- **Settings** — hand, microphone, headphones/speakers, sounds, display, privacy. **Advanced tools** (off by default) reveals the Mic test lab, timing calibration, backup/restore and the experimental camera view.
 
-## What you can do now
-
-1. **Setup** — choose a mic, see the input meter, check background noise and clipping, say whether you use headphones or speakers, optionally calibrate timing.
-2. **Tuner** — selected-string or chromatic, cents flat/sharp, steady “In tune” lock, reference tone on request.
-3. **Learn** — nine short lessons: meet the guitar → first sound → feel the pulse (tap along) → frets on string 1 → string 2 → E minor → A minor and changing chords → *Morning Steps* (your first complete piece) → listen and remember (ear training). Chords are checked one string at a time; strumming is practice-only (not scored).
-4. **Practice** — Morning Steps, the original two-string exercise and the lesson drills: count-in, metronome, 50/75/100% tempo, seek, A–B loop, wait / fixed tempo / listen, **cue levels for recall** (full, reduced, from memory), phrase review with coverage, one next step, and offers to go faster/slower. Playing a piece from memory on a later day marks it **retained**.
-5. **Diagnostics** — what the app hears from your guitar, how fast feedback arrives, and a guided recording you can analyze locally (and optionally save to help tune the detector).
-6. **Settings & data** — handedness, reduced motion, high contrast, volumes; export/import/delete your progress; offline status.
-
-Keyboard in Practice: `Space` play/pause, `Esc` pause, `←`/`→` one beat, `Home` restart, `N` continue/skip in wait mode.
+The mic chip at the top (or "Simulation" when you have no guitar) shows whether the app is listening; tap it to start/stop listening or choose headphones/speakers.
 
 ## Five-minute real-guitar smoke test
 
-1. `pnpm dev`, open Chrome, **Set up listening**, pick your mic, pluck: the meter moves. Deny permission once (address-bar icon) and confirm the app explains how to recover; allow it and press **Try again**.
-2. **Tuner**: select each string and compare with a trusted tuner. Stay silent for 5 s — it must not show “In tune”. Don't overtighten strings to test it.
-3. **Learn → Your first sound**: play the open high E three times; then play a wrong string on purpose and check the message names what it heard.
-4. **Practice → First two strings**: try 50/75/100%, pause/restart/seek/loop. In fixed tempo, hold one note across repeated targets — it must not earn repeated credit.
-5. Unplug the mic mid-practice (it pauses, nothing marked wrong), reload, export progress, check the summary.
-6. **Diagnostics → Guided check** on each open string; save any clip that looks wrong.
-
-Please write down what happened (device, browser, what you expected, what you saw) — it drives the next fix.
-
-## Known limitations
-
-See `Documents/KNOWN-LIMITATIONS.md`. Highlights: pitch tells which note sounded, not which string/finger; strummed chords are not scored; timing is approximate until calibrated; camera and song import are not implemented; lessons are not teacher-reviewed; real-guitar accuracy is still unmeasured.
+1. Onboard with "Let the app hear me play", pluck: the level bar moves. Deny permission once and check the app explains how to recover.
+2. **Tune**: tune all six strings; stay silent 5 s — it must not say "In tune".
+3. **Learn → Your first sound**: play the open high E; then pluck another string on purpose and check the message names what it heard.
+4. **Practice → Morning Steps**: try "Wait for me", then "Keep the beat" at 50 %; open the options (sliders icon) to repeat a bar or hide hints.
+5. Settings → Advanced tools → **Mic test lab**: do the guided check on each open string and note the feedback speed. Save any clip that looks wrong.
 
 ## Documents
 
-- `Documents/GUITAR-UNHERO-MASTER-SPEC.md` — product/technical specification (source of truth)
-- `Documents/DECISIONS.md`, `Documents/ACCEPTANCE.md`, `Documents/KNOWN-LIMITATIONS.md`, `Documents/ASSET-MANIFEST.md`
+- `Documents/GUITAR-UNHERO-MASTER-SPEC.md` — specification (source of truth)
+- `Documents/DECISIONS.md`, `Documents/ACCEPTANCE.md`, `Documents/KNOWN-LIMITATIONS.md`, `Documents/ASSET-MANIFEST.md`, `THIRD_PARTY_NOTICES.md`
 - `HANDOFF.md` — current state and next task; `CLAUDE.md` — notes for coding agents
