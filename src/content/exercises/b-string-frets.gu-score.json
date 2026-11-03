@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "gu-score/1",
+  "arrangementId": "exercise.b-string-frets",
+  "version": 1,
+  "parent": null,
+  "title": "B string: open, first and third frets",
+  "role": "original_exercise",
+  "ppq": 960,
+  "durationTicks": 7680,
+  "instrument": {
+    "type": "six_string_guitar",
+    "capo": 0,
+    "maxFret": 22,
+    "strings": [
+      {
+        "number": 1,
+        "openMidi": 64
+      },
+      {
+        "number": 2,
+        "openMidi": 59
+      },
+      {
+        "number": 3,
+        "openMidi": 55
+      },
+      {
+        "number": 4,
+        "openMidi": 50
+      },
+      {
+        "number": 5,
+        "openMidi": 45
+      },
+      {
+        "number": 6,
+        "openMidi": 40
+      }
+    ]
+  },
+  "tempoMap": [
+    {
+      "tick": 0,
+      "bpm": 60
+    }
+  ],
+  "meterMap": [
+    {
+      "tick": 0,
+      "numerator": 4,
+      "denominator": 4
+    }
+  ],
+  "events": [
+    {
+      "id": "n1",
+      "kind": "note",
+      "startTick": 0,
+      "durationTicks": 960,
+      "pitchMidi": 59,
+      "string": 2,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n2",
+      "kind": "note",
+      "startTick": 1920,
+      "durationTicks": 960,
+      "pitchMidi": 60,
+      "string": 2,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n3",
+      "kind": "note",
+      "startTick": 3840,
+      "durationTicks": 960,
+      "pitchMidi": 62,
+      "string": 2,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n4",
+      "kind": "note",
+      "startTick": 5760,
+      "durationTicks": 960,
+      "pitchMidi": 59,
+      "string": 2,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    }
+  ],
+  "rights": {
+    "status": "user_declared",
+    "author": "Guitar Unhero project (original technical exercise written for this prototype)",
+    "license": null,
+    "allowedUses": [
+      "local_practice",
+      "modify"
+    ],
+    "sourceUri": null,
+    "evidence": "Written for this repository as a generic open-position drill; not adapted from an identified song, recording, or tab. Not a third-party rights clearance. Confirm the release policy before public redistribution."
+  },
+  "provenance": {
+    "createdAt": "2026-11-03T12:00:00Z",
+    "createdBy": "Guitar Unhero M1 implementation session",
+    "method": "authored",
+    "reviewStatus": "unreviewed",
+    "reviewer": null,
+    "notes": "B3, C4, D4, B3 with a rest after each note, at 60 BPM. Used by lesson.b-string.first-frets.v1."
+  },
+  "transformations": []
+}
