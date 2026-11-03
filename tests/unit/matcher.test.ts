@@ -154,14 +154,14 @@ describe('fixed-tempo matcher', () => {
     expect(j.reasonCodes).toContain('guide_audible_on_speakers');
   });
 
-  it('an unpitched attack (e.g. a leaked click) is never matched and its timing is never graded', () => {
+  it('an unpitched sound is never matched or timed: the target is uncertain, not credited and not a miss', () => {
     const m = new FixedTempoMatcher(ctx(), goodTimeline());
     m.addTarget(target(ev('n1'), 10));
     m.addAttack(attack(10, null, 'unavailable'));
     const j = m.finalize(30)[0]!;
     expect(j.observationIds).toEqual([]);
-    expect(j.rhythmState).not.toBe('correct');
-    expect(j.reasonCodes).toContain('no_attack_detected');
+    expect(j).toMatchObject({ state: 'uncertain', pitchState: 'uncertain', rhythmState: 'not_assessed' });
+    expect(j.reasonCodes).toContain('unpitched_sound');
   });
 
   it('unstable pitch evidence gives uncertain pitch, not incorrect', () => {

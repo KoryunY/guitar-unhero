@@ -156,6 +156,22 @@ export class FixedTempoMatcher {
     const best = scored[0];
 
     if (!best) {
+      // Something was heard but with no usable pitch (unclear pluck, two strings, a knock):
+      // neither credit nor a miss.
+      const unclear = this.attacks.some((a) => a.pitchMidiFloat === null && !this.used.has(a.id) && a.onsetContextSec >= w0 && a.onsetContextSec < w1);
+      if (unclear) {
+        return {
+          ...base,
+          observationIds: [],
+          state: 'uncertain',
+          pitchState: pitchOn ? 'uncertain' : 'not_assessed',
+          rhythmState: 'not_assessed',
+          timingErrorMs: null,
+          pitchErrorCents: null,
+          observedMidi: null,
+          reasonCodes: ['unpitched_sound'],
+        };
+      }
       if (cov.poor >= 0.5) {
         return {
           ...base,

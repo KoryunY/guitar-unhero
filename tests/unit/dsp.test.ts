@@ -72,7 +72,11 @@ describe('onsets and attacks', () => {
 
   it('a held note produces exactly one attack (cannot clear repeated targets)', () => {
     const sr = 48000;
-    const { attacks } = run(placeAt(sr, 5, [{ atSec: 0.2, sig: pluck(sr, midiHz(64), 4.5, 0.4, 2, 0.9995) }]), sr);
+    // 30 ms fade-out: a physical string never stops in a single-sample step.
+    const held = pluck(sr, midiHz(64), 4.5, 0.4, 2, 0.9995);
+    const fade = Math.round(0.03 * sr);
+    for (let i = 0; i < fade; i++) held[held.length - fade + i]! *= 1 - i / fade;
+    const { attacks } = run(placeAt(sr, 5, [{ atSec: 0.2, sig: held }]), sr);
     expect(attacks).toHaveLength(1);
   });
 

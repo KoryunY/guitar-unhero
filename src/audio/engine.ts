@@ -220,8 +220,13 @@ export class AudioEngine {
     return this.oneShot(this.pluckBuffer(midi), when, bus, maxDur);
   }
 
+  /** Recent metronome click times; an unpitched sound just after one is likely its echo. */
+  private clickTimes: number[] = [];
+
   playClick(when: number, accent: boolean): Handle | null {
     if (!this.ctx) return null;
+    this.clickTimes.push(when);
+    if (this.clickTimes.length > 64) this.clickTimes.shift();
     return this.oneShot(this.clickBuffer(accent), when, 'metronome');
   }
 
@@ -357,6 +362,8 @@ export class AudioEngine {
     }
     for (const a of d.attacks) {
       if (this.isBlocked(a.onsetContextSec)) continue; // never assess the app's own sound
+      // An unpitched onset within 300 ms after one of our clicks is treated as click leakage.
+      if (a.pitchMidiFloat === null && this.clickTimes.some((c) => a.onsetContextSec >= c - 0.02 && a.onsetContextSec <= c + 0.3)) continue;
       this.emit('attack', { ...a, producedAtPerformanceMs: performance.now() });
     }
   }
