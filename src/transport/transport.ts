@@ -318,6 +318,14 @@ export class Transport {
   }
 
   // ---------- queries ----------
+  /** 1-based count-in beat at context time c, or null outside the count-in. */
+  countInBeatAt(c: number): number | null {
+    if (this.state !== 'countIn' || !this.countIn || !this.seg) return null;
+    if (c < this.countIn.startC) return null;
+    const k = Math.floor((c - this.countIn.startC) / this.countIn.beatC) + 1;
+    return k >= 1 && k <= this.countIn.beats ? k : null;
+  }
+
   /** Source position (seconds at 100% tempo) at context time c. Negative-relative during count-in. */
   positionAt(c: number): number {
     if (this.state === 'waitingForTarget' || !this.seg || !(this.state === 'countIn' || this.state === 'playing')) {

@@ -189,3 +189,25 @@ describe('transport and scheduler', () => {
     expect(transport.positionAt(clock.t)).toBe(8);
   });
 });
+
+import { estimateLoopback, calibrationValid } from '../../src/audio/calibration';
+describe('latency calibration', () => {
+  it('estimates one combined offset and rejects inconsistent loopback', () => {
+    const sched = [1, 1.6, 2.2, 2.8, 3.4, 4.0, 4.6, 5.2];
+    const ok = estimateLoopback(sched, sched.map((s, i) => s + 0.082 + (i % 2 ? 0.002 : -0.001)));
+    expect(ok.ok).toBe(true);
+    expect(ok.offsetMs).toBeGreaterThanOrEqual(81);
+    expect(ok.offsetMs).toBeLessThanOrEqual(84);
+    const noisy = estimateLoopback(sched, sched.map((s, i) => s + 0.05 + (i % 2 ? 0.1 : 0)));
+    expect(noisy.ok).toBe(false);
+    const missing = estimateLoopback(sched, [1.08, 1.68]);
+    expect(missing).toMatchObject({ ok: false, reason: 'too_few_pulses_heard' });
+  });
+  it('invalidates on device, sample-rate or route change', () => {
+    const cal = { method: 'loopback' as const, offsetMs: 80, spreadMs: 2, samples: 8, deviceId: 'd1', sampleRate: 48000, outputRoute: 'speakers' as const, createdAt: '' };
+    expect(calibrationValid(cal, { deviceId: 'd1', sampleRate: 48000, outputRoute: 'speakers' })).toBe(true);
+    expect(calibrationValid(cal, { deviceId: 'd2', sampleRate: 48000, outputRoute: 'speakers' })).toBe(false);
+    expect(calibrationValid(cal, { deviceId: 'd1', sampleRate: 44100, outputRoute: 'speakers' })).toBe(false);
+    expect(calibrationValid(cal, { deviceId: 'd1', sampleRate: 48000, outputRoute: 'headphones' })).toBe(false);
+  });
+});

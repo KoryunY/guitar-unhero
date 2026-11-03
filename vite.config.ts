@@ -38,6 +38,11 @@ export default defineConfig({
   server: { port: 5173, strictPort: true },
   preview: { port: 4173, strictPort: true },
   worker: { format: 'es' },
+  build: {
+    // The AudioWorklet module must be a real same-origin file (CSP script-src 'self'), never a data: URL.
+    assetsInlineLimit: (file) => (file.endsWith('.js') ? false : undefined),
+    chunkSizeWarningLimit: 700,
+  },
   test: {
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
