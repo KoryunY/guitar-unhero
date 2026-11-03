@@ -8,7 +8,8 @@
  */
 import type { NoteEvent, Score } from '../domain/score';
 import { scoreBpm, sortEvents, PPQ } from '../domain/score';
-import { SegmentHistory, contextAt, sourceAt, ticksToSec, type Segment } from './tempo';
+import { SegmentHistory, contextAt, sourceAt, type Segment } from './tempo';
+import { ConstantTempoMap, type TimeMap } from './timemap';
 
 export type TransportState =
   | 'idle'
@@ -36,7 +37,9 @@ export interface TransportSegment extends Segment {
 
 export interface ScheduledItem {
   key: string;
-  kind: 'note' | 'click' | 'countIn';
+  kind: 'note' | 'click' | 'countIn' | 'backing';
+  /** For 'backing': context time at which the recording must stop (segment end). */
+  endContextTime?: number;
   contextTime: number;
   sourceSec: number;
   accent: boolean;
@@ -63,14 +66,20 @@ export class Transport {
   readonly score: Score;
   readonly events: readonly NoteEvent[];
   readonly bpm: number;
+  /** Nominal beat length at the start of the score (local beats come from the time map). */
   readonly beatSec: number;
   readonly durationSec: number;
+  /** Source second of tick 0 (0 for authored scores; the first downbeat in a recording). */
+  readonly startSec: number;
+  readonly map: TimeMap;
 
   state: TransportState = 'ready';
   mode: PracticeMode = 'fixed';
   rate = 1;
   loop: LoopRange | null = null;
   countInBeats = 4;
+  /** Schedule a backing recording (source seconds = recording seconds) per segment; only at rate 1. */
+  backingEnabled = false;
   /** Lead time before the first count-in click, allowing the scheduler to fill. */
   startDelay = 0.12;
   /** Delay before continuing after a recognized wait-mode target. */
@@ -86,12 +95,15 @@ export class Transport {
   private readonly listeners = new Set<(e: TransportEvent) => void>();
   private readonly now: () => number;
 
-  constructor(score: Score, now: () => number) {
+  constructor(score: Score, now: () => number, map?: TimeMap) {
     this.score = score;
     this.events = sortEvents(score.events);
-    this.bpm = scoreBpm(score);
-    this.beatSec = 60 / this.bpm;
-    this.durationSec = ticksToSec(score.durationTicks, this.bpm);
+    this.map = map ?? new ConstantTempoMap(scoreBpm(score));
+    this.startSec = this.map.tickToSec(0);
+    this.bpm = this.map.bpmAt(this.startSec);
+    this.beatSec = this.map.beatSecAt(this.startSec);
+    this.durationSec = this.map.tickToSec(score.durationTicks);
+    this.positionSec = this.startSec;
     this.now = now;
   }
 
@@ -130,11 +142,15 @@ export class Transport {
   }
 
   eventSec(ev: NoteEvent): number {
-    return ticksToSec(ev.startTick, this.bpm);
+    return this.map.tickToSec(ev.startTick);
   }
 
   tickToSec(tick: number): number {
-    return ticksToSec(tick, this.bpm);
+    return this.map.tickToSec(tick);
+  }
+
+  secToTick(sec: number): number {
+    return this.map.secToTick(sec);
   }
 
   private boundS(): number {
@@ -142,7 +158,7 @@ export class Transport {
   }
 
   private loopStartS(): number {
-    return this.loop ? this.tickToSec(this.loop.aTick) : 0;
+    return this.loop ? this.tickToSec(this.loop.aTick) : this.startSec;
   }
 
   private nextWaitIndex(s0: number, inclusive: boolean, bound: number): number | null {
@@ -187,11 +203,12 @@ export class Transport {
     }
     this.epoch += 1;
     const now = this.now();
-    const countInC = (this.countInBeats * this.beatSec) / this.rate;
+    const localBeat = this.map.beatSecAt(this.positionSec);
+    const countInC = (this.countInBeats * localBeat) / this.rate;
     const c0 = now + this.startDelay + countInC;
     this.seg = this.makeSegment(this.positionSec, c0, this.seg?.loopIteration ?? 0, true, false);
     this.history.push(this.seg);
-    this.countIn = { epoch: this.epoch, startC: c0 - countInC, beats: this.countInBeats, beatC: this.beatSec / this.rate };
+    this.countIn = { epoch: this.epoch, startC: c0 - countInC, beats: this.countInBeats, beatC: localBeat / this.rate };
     this.waitingTarget = null;
     this.setState(this.countInBeats > 0 ? 'countIn' : 'playing');
   }
@@ -222,7 +239,7 @@ export class Transport {
   seek(tick: number): void {
     const wasRunning = this.running;
     if (wasRunning) this.stopAll('seek');
-    let s = Math.min(Math.max(this.tickToSec(tick), 0), this.durationSec);
+    let s = Math.min(Math.max(this.tickToSec(tick), Math.min(0, this.startSec)), this.durationSec);
     if (this.loop) s = Math.min(Math.max(s, this.loopStartS()), this.boundS() - 1e-6);
     this.positionSec = s;
     this.newAttempt();
@@ -362,7 +379,7 @@ export class Transport {
             key: `${this.attemptId}:${ci.epoch}:ci:${k}`,
             kind: 'countIn',
             contextTime: t,
-            sourceSec: this.seg.s0 - (ci.beats - k) * this.beatSec,
+            sourceSec: this.seg.s0 - (ci.beats - k) * ci.beatC * this.rate,
             accent: k === 0,
             attemptId: this.attemptId,
             epoch: ci.epoch,
@@ -375,6 +392,19 @@ export class Transport {
       const segStartC = seg.c0;
       const segEndC = contextAt(seg, seg.endS);
       if (segEndC < c1 || segStartC >= c2) continue;
+      if (this.backingEnabled && this.rate === 1 && seg.c0 >= c1 && seg.c0 < c2 && seg.endS > seg.s0) {
+        items.push({
+          key: `${this.attemptId}:${seg.epoch}:${seg.loopIteration}:backing`,
+          kind: 'backing',
+          contextTime: seg.c0,
+          endContextTime: segEndC,
+          sourceSec: seg.s0,
+          accent: false,
+          attemptId: this.attemptId,
+          epoch: seg.epoch,
+          loopIteration: seg.loopIteration,
+        });
+      }
       if (this.mode !== 'wait') {
         for (const ev of this.events) {
           const s = this.eventSec(ev);
@@ -395,9 +425,9 @@ export class Transport {
           }
         }
       }
-      const firstBeat = Math.ceil(seg.s0 / this.beatSec - 1e-9);
-      for (let k = firstBeat; k * this.beatSec < seg.endS - 1e-9; k++) {
-        const s = k * this.beatSec;
+      const firstBeat = Math.max(0, Math.ceil(this.map.secToTick(seg.s0) / PPQ - 1e-9));
+      for (let k = firstBeat; this.map.tickToSec(k * PPQ) < seg.endS - 1e-9; k++) {
+        const s = this.map.tickToSec(k * PPQ);
         if (seg.skipStartBeat && Math.abs(s - seg.s0) < 1e-9) continue;
         const t = contextAt(seg, s);
         if (t >= c2) break;
