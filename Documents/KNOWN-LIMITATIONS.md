@@ -1,36 +1,45 @@
-# Known limitations (M1)
+# Known limitations (after the limitation pass + M2)
 
-## Not yet verified with hardware
-- No physical guitar, microphone, room, headphones or Bluetooth device has been tested. All automated checks ran headless in a cloud container (Chromium fake capture devices and synthetic signals). AC-08, AC-11, AC-13 and AC-18 remain **pending**.
-- Detector thresholds (onset rise, gate, aperiodicity, attack frames) are tuned on synthetic plucks only. Real nylon/steel/electric strings, string noise and room echo may need adjustment.
+Status legend: **fixed** this run · **reduced** (improved, still present) · **open**.
+
+## Addressed in this run
+- **fixed** — Production CSP no longer needs `'unsafe-eval'` (validators precompiled, D-22).
+- **fixed** — AudioContext interruption now has an automated browser test.
+- **fixed** — Automated axe accessibility audit (WCAG 2.0/2.1/2.2 A/AA rules) passes on every screen in light, dark, high-contrast and simulation states. Four contrast issues found and fixed.
+- **fixed** — Works offline after the first visit (service worker; production build only).
+- **fixed** — Bundle code-split (entry ~260 kB instead of 505 kB).
+- **reduced** — Detector robustness: found and fixed false extra attacks on low strings, missed notes when another string rings, and wrong "missing-fundamental" pitches from two ringing strings (D-25…D-28). Still synthetic-only evidence.
+- **reduced** — Hardware checks: a Diagnostics screen now measures feedback latency on *your* device and records guided clips you can analyze locally or add to `tests/fixtures/recordings/` for `pnpm test:recordings`.
+
+## Not yet verified with hardware (open)
+- No physical guitar, microphone, room or headphones have been tested. AC-08 (real-note accuracy), AC-11 (feedback latency on reference hardware), AC-13 (audio/cursor alignment & drift) and AC-18 (real leakage) are **pending**. Headless numbers (fake device) are reported in `ACCEPTANCE.md` but are not hardware results.
+- Robustness thresholds were tuned on *guitar-like synthetic* signals (inharmonic partials, attack glide, echo, hum, noise). Real strings, cheap laptop mics (weak low-E fundamental) and rooms may still need tuning — please use Diagnostics.
 
 ## Sensing boundaries (by design)
-- Pitch identifies the sounding note only — not the string, fret, finger, pressure or posture. Fingering numbers are suggestions.
-- Monophonic only: chords and two simultaneous notes are not assessed; strumming confuses the detector (the tuner says "not one clear pitch").
-- Octave-only differences are reported as uncertain rather than wrong.
-- Sustain/duration is not assessed (`assessment.sustain` is false in the schema).
-- The "stop the ringing" step can only hear that the sound stopped, not how.
+- Pitch identifies the sounding note, not the string, fret, finger, pressure or posture.
+- Chords: shapes are taught with diagrams and **one-string-at-a-time** checks. Strummed chords and chord changes are **not assessed**.
+- Two strings ringing together: the app cancels up to two previous notes to hear the new one; if it still can't be sure, the note is "uncertain", never "wrong". One synthetic case (low E entering under a ringing B2) is still missed.
+- Very fast notes (8ths at 120 BPM) are detected but only about half get a stable pitch (≈140 ms of sound is needed); they show as uncertain.
+- Octave-only differences are uncertain; sustain/duration is not assessed; "stop the ringing" only hears that the sound stopped.
+- Pitch reads ~10–20 cents sharp right after a hard pluck (attack glide/inharmonicity in the synthetic model); the ±50-cent note tolerance absorbs this, the tuner uses the steadier sustained part.
 
 ## Timing
-- Uncalibrated timing uses a ±250 ms window and is labeled approximate. Loopback calibration needs speakers and a quiet room; with headphones only the manual "personal adjustment" is available.
-- Visual/audio alignment uses `getOutputTimestamp()` when available; real-device drift/latency (AC-13) is unmeasured.
-- Bluetooth output latency is not corrected.
-- Changing tempo, mode or loop restarts with a count-in (no seamless rate changes).
+- Uncalibrated timing uses a ±250 ms window and is labeled approximate. Loopback calibration needs speakers; with headphones use the manual adjustment.
+- The tap-pulse exercise includes keyboard and audio-output delay (labeled approximate).
+- Bluetooth latency is not corrected. Tempo/mode/loop changes restart with a count-in.
 
-## Product scope not in M1
-- Camera coaching, song upload/import, transcription, separation, score editor, chord lessons, recall mode, adaptive tempo automation, offline service worker, accounts/sync — all absent and not shown as enabled.
-- Only bundled original exercises can be practised; there is no score-file import UI (the validator exists).
-- Adaptation is advice-only (the summary suggests the next tempo); it never changes settings automatically.
-- Skill states stop at `demonstrated`; `retained` needs a later recall attempt (M2).
+## Learning content
+- All lessons are unreviewed drafts (`reviewStatus: unreviewed`); a qualified teacher should review technique text before public use.
+- The curriculum ends at a first complete single-note piece (*Morning Steps*) plus Em/Am chords. Strumming patterns, more chords (C, G, D), muting, and an accompanied piece are later work.
+- "Retained" needs a from-memory microphone success on a later day; simulated or self-checked practice never counts.
+- Adaptation only *offers* changes; tempo steps are 50/75/100 % (not +5 BPM increments).
 
-## Content
-- Lesson text and technique advice are unreviewed drafts (`reviewStatus: unreviewed`); a qualified teacher must review them before public use.
-- English only; strings are in components, not yet extracted for translation.
+## Product scope not built
+- Camera coaching, song upload/import, transcription, separation, score editor, accounts/sync. Not shown as enabled.
+- No score-file import UI (validator exists).
 
 ## Platform / engineering
-- Primary target is desktop Chrome/Edge. Firefox/Safari, tablets and phones are untested.
-- Production CSP includes `'unsafe-eval'` because Ajv compiles schemas at runtime (D-07).
-- IndexedDB data is per browser profile and can be cleared by the browser; use Export.
-- Context suspension (e.g. OS audio interruption) pauses practice via `statechange`, but this path has no automated test.
-- Accessibility: keyboard, labels, focus, reduced motion and high contrast are implemented; no automated axe audit or screen-reader test has been run. WCAG conformance is not claimed.
-- The JS bundle is ~505 kB (Ajv + React); not yet code-split.
+- Desktop Chrome/Edge is the target; Firefox/Safari/tablets/phones untested.
+- UI strings are not extracted for translation; the interface will be redesigned after milestones (owner's request).
+- Automated accessibility checks don't replace a human keyboard + screen-reader review; WCAG conformance is not claimed.
+- IndexedDB data is per browser profile; use Export.

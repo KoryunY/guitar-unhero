@@ -561,7 +561,7 @@ const M2_LESSONS: Lesson[] = [
           'If a string sounds muffled or wrong, adjust that finger and pluck it again. A clear note means that string is sounding — it does not tell me which finger you used.',
         ],
         diagram: chordDiagram(EM),
-        sequence: { targets: chordTargets(EM), label: 'Pluck string' },
+        sequence: { targets: chordTargets(EM), label: 'Pluck' },
         selfCheckLabel: 'Each string rang clearly (self-check)',
       },
       {
@@ -623,7 +623,7 @@ const M2_LESSONS: Lesson[] = [
         kind: 'sequence',
         body: ['Hold Am and pluck strings 5, 4, 3, 2, 1 one at a time. Skip string 6.'],
         diagram: chordDiagram(AM),
-        sequence: { targets: chordTargets(AM), label: 'Pluck string' },
+        sequence: { targets: chordTargets(AM), label: 'Pluck' },
         selfCheckLabel: 'Each played string rang clearly (self-check)',
       },
       {

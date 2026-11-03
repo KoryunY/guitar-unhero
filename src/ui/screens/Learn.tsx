@@ -74,7 +74,7 @@ function LessonRunner({ lesson }: { lesson: Lesson }) {
       <div className="panel">
         <h2 ref={headingRef} tabIndex={-1} style={{ marginTop: 0 }}>Step {idx + 1}: {step.title}</h2>
         {step.body.map((p, i) => <p key={i}>{p}</p>)}
-        {step.diagram && <FretDiagram diagram={step.diagram} leftHanded={settings.handedness === 'left'} />}
+        {step.diagram && step.kind !== 'strum-along' && <FretDiagram diagram={step.diagram} leftHanded={settings.handedness === 'left'} />}
         {step.phases && (
           <ol className="phases" aria-label="Movement phases">
             {step.phases.map((ph) => <li key={ph.label}><strong>{ph.label}</strong>{ph.text}</li>)}
