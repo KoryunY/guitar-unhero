@@ -1,0 +1,268 @@
+{
+  "schemaVersion": "gu-score/1",
+  "arrangementId": "exercise.low-strings",
+  "version": 1,
+  "parent": null,
+  "title": "Low strings: E, F, G and A, B, C",
+  "role": "original_exercise",
+  "ppq": 960,
+  "durationTicks": 15360,
+  "instrument": {
+    "type": "six_string_guitar",
+    "capo": 0,
+    "maxFret": 22,
+    "strings": [
+      {
+        "number": 1,
+        "openMidi": 64
+      },
+      {
+        "number": 2,
+        "openMidi": 59
+      },
+      {
+        "number": 3,
+        "openMidi": 55
+      },
+      {
+        "number": 4,
+        "openMidi": 50
+      },
+      {
+        "number": 5,
+        "openMidi": 45
+      },
+      {
+        "number": 6,
+        "openMidi": 40
+      }
+    ]
+  },
+  "tempoMap": [
+    {
+      "tick": 0,
+      "bpm": 60
+    }
+  ],
+  "meterMap": [
+    {
+      "tick": 0,
+      "numerator": 4,
+      "denominator": 4
+    }
+  ],
+  "events": [
+    {
+      "id": "n1",
+      "kind": "note",
+      "startTick": 0,
+      "durationTicks": 960,
+      "pitchMidi": 40,
+      "string": 6,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n2",
+      "kind": "note",
+      "startTick": 960,
+      "durationTicks": 960,
+      "pitchMidi": 41,
+      "string": 6,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n3",
+      "kind": "note",
+      "startTick": 1920,
+      "durationTicks": 960,
+      "pitchMidi": 43,
+      "string": 6,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n4",
+      "kind": "note",
+      "startTick": 3840,
+      "durationTicks": 960,
+      "pitchMidi": 45,
+      "string": 5,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n5",
+      "kind": "note",
+      "startTick": 4800,
+      "durationTicks": 960,
+      "pitchMidi": 47,
+      "string": 5,
+      "fret": 2,
+      "finger": 2,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n6",
+      "kind": "note",
+      "startTick": 5760,
+      "durationTicks": 960,
+      "pitchMidi": 48,
+      "string": 5,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n7",
+      "kind": "note",
+      "startTick": 7680,
+      "durationTicks": 960,
+      "pitchMidi": 48,
+      "string": 5,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n8",
+      "kind": "note",
+      "startTick": 8640,
+      "durationTicks": 960,
+      "pitchMidi": 47,
+      "string": 5,
+      "fret": 2,
+      "finger": 2,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n9",
+      "kind": "note",
+      "startTick": 9600,
+      "durationTicks": 960,
+      "pitchMidi": 45,
+      "string": 5,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n10",
+      "kind": "note",
+      "startTick": 10560,
+      "durationTicks": 960,
+      "pitchMidi": 43,
+      "string": 6,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n11",
+      "kind": "note",
+      "startTick": 11520,
+      "durationTicks": 960,
+      "pitchMidi": 41,
+      "string": 6,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n12",
+      "kind": "note",
+      "startTick": 12480,
+      "durationTicks": 1920,
+      "pitchMidi": 40,
+      "string": 6,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    }
+  ],
+  "rights": {
+    "status": "user_declared",
+    "author": "Guitar Unhero project (original technical exercise written for this prototype)",
+    "license": null,
+    "allowedUses": [
+      "local_practice",
+      "modify"
+    ],
+    "sourceUri": null,
+    "evidence": "Written for this repository as an original teaching exercise; not adapted from an identified song, recording, or tab. Short generic note patterns (scales, chord tones) are not claimed to be globally unique. Not a third-party rights clearance. Confirm the release policy before public redistribution."
+  },
+  "provenance": {
+    "createdAt": "2026-11-03T20:00:00Z",
+    "createdBy": "Guitar Unhero curriculum expansion session",
+    "method": "authored",
+    "reviewStatus": "unreviewed",
+    "reviewer": null,
+    "notes": "Open, first and third frets on string 6, then open, second and third frets on string 5, back down to low E. Quarter notes with rests, 60 BPM. Used by lesson.low-strings.v1."
+  },
+  "transformations": []
+}

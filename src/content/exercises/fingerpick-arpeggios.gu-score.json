@@ -1,0 +1,540 @@
+{
+  "schemaVersion": "gu-score/1",
+  "arrangementId": "exercise.fingerpick-arpeggios",
+  "version": 1,
+  "parent": null,
+  "title": "Fingerpicking: p-i-m-a over Am, C, G and Em",
+  "role": "original_exercise",
+  "ppq": 960,
+  "durationTicks": 15360,
+  "instrument": {
+    "type": "six_string_guitar",
+    "capo": 0,
+    "maxFret": 22,
+    "strings": [
+      {
+        "number": 1,
+        "openMidi": 64
+      },
+      {
+        "number": 2,
+        "openMidi": 59
+      },
+      {
+        "number": 3,
+        "openMidi": 55
+      },
+      {
+        "number": 4,
+        "openMidi": 50
+      },
+      {
+        "number": 5,
+        "openMidi": 45
+      },
+      {
+        "number": 6,
+        "openMidi": 40
+      }
+    ]
+  },
+  "tempoMap": [
+    {
+      "tick": 0,
+      "bpm": 60
+    }
+  ],
+  "meterMap": [
+    {
+      "tick": 0,
+      "numerator": 4,
+      "denominator": 4
+    }
+  ],
+  "events": [
+    {
+      "id": "n1",
+      "kind": "note",
+      "startTick": 0,
+      "durationTicks": 480,
+      "pitchMidi": 45,
+      "string": 5,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n2",
+      "kind": "note",
+      "startTick": 480,
+      "durationTicks": 480,
+      "pitchMidi": 57,
+      "string": 3,
+      "fret": 2,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n3",
+      "kind": "note",
+      "startTick": 960,
+      "durationTicks": 480,
+      "pitchMidi": 60,
+      "string": 2,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n4",
+      "kind": "note",
+      "startTick": 1440,
+      "durationTicks": 480,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n5",
+      "kind": "note",
+      "startTick": 1920,
+      "durationTicks": 480,
+      "pitchMidi": 45,
+      "string": 5,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n6",
+      "kind": "note",
+      "startTick": 2400,
+      "durationTicks": 480,
+      "pitchMidi": 57,
+      "string": 3,
+      "fret": 2,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n7",
+      "kind": "note",
+      "startTick": 2880,
+      "durationTicks": 480,
+      "pitchMidi": 60,
+      "string": 2,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n8",
+      "kind": "note",
+      "startTick": 3360,
+      "durationTicks": 480,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n9",
+      "kind": "note",
+      "startTick": 3840,
+      "durationTicks": 480,
+      "pitchMidi": 48,
+      "string": 5,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n10",
+      "kind": "note",
+      "startTick": 4320,
+      "durationTicks": 480,
+      "pitchMidi": 55,
+      "string": 3,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n11",
+      "kind": "note",
+      "startTick": 4800,
+      "durationTicks": 480,
+      "pitchMidi": 60,
+      "string": 2,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n12",
+      "kind": "note",
+      "startTick": 5280,
+      "durationTicks": 480,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n13",
+      "kind": "note",
+      "startTick": 5760,
+      "durationTicks": 480,
+      "pitchMidi": 48,
+      "string": 5,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n14",
+      "kind": "note",
+      "startTick": 6240,
+      "durationTicks": 480,
+      "pitchMidi": 55,
+      "string": 3,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n15",
+      "kind": "note",
+      "startTick": 6720,
+      "durationTicks": 480,
+      "pitchMidi": 60,
+      "string": 2,
+      "fret": 1,
+      "finger": 1,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n16",
+      "kind": "note",
+      "startTick": 7200,
+      "durationTicks": 480,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n17",
+      "kind": "note",
+      "startTick": 7680,
+      "durationTicks": 480,
+      "pitchMidi": 43,
+      "string": 6,
+      "fret": 3,
+      "finger": 2,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n18",
+      "kind": "note",
+      "startTick": 8160,
+      "durationTicks": 480,
+      "pitchMidi": 55,
+      "string": 3,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n19",
+      "kind": "note",
+      "startTick": 8640,
+      "durationTicks": 480,
+      "pitchMidi": 59,
+      "string": 2,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n20",
+      "kind": "note",
+      "startTick": 9120,
+      "durationTicks": 480,
+      "pitchMidi": 67,
+      "string": 1,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n21",
+      "kind": "note",
+      "startTick": 9600,
+      "durationTicks": 480,
+      "pitchMidi": 43,
+      "string": 6,
+      "fret": 3,
+      "finger": 2,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n22",
+      "kind": "note",
+      "startTick": 10080,
+      "durationTicks": 480,
+      "pitchMidi": 55,
+      "string": 3,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n23",
+      "kind": "note",
+      "startTick": 10560,
+      "durationTicks": 480,
+      "pitchMidi": 59,
+      "string": 2,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n24",
+      "kind": "note",
+      "startTick": 11040,
+      "durationTicks": 480,
+      "pitchMidi": 67,
+      "string": 1,
+      "fret": 3,
+      "finger": 3,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n25",
+      "kind": "note",
+      "startTick": 11520,
+      "durationTicks": 480,
+      "pitchMidi": 40,
+      "string": 6,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n26",
+      "kind": "note",
+      "startTick": 12000,
+      "durationTicks": 480,
+      "pitchMidi": 55,
+      "string": 3,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n27",
+      "kind": "note",
+      "startTick": 12480,
+      "durationTicks": 480,
+      "pitchMidi": 59,
+      "string": 2,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n28",
+      "kind": "note",
+      "startTick": 12960,
+      "durationTicks": 480,
+      "pitchMidi": 64,
+      "string": 1,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    },
+    {
+      "id": "n29",
+      "kind": "note",
+      "startTick": 13440,
+      "durationTicks": 1920,
+      "pitchMidi": 40,
+      "string": 6,
+      "fret": 0,
+      "finger": null,
+      "sourceEventIds": [],
+      "assessment": {
+        "pitch": true,
+        "attack": true,
+        "sustain": false
+      }
+    }
+  ],
+  "rights": {
+    "status": "user_declared",
+    "author": "Guitar Unhero project (original technical exercise written for this prototype)",
+    "license": null,
+    "allowedUses": [
+      "local_practice",
+      "modify"
+    ],
+    "sourceUri": null,
+    "evidence": "Written for this repository as an original teaching exercise; not adapted from an identified song, recording, or tab. Short generic note patterns (scales, chord tones) are not claimed to be globally unique. Not a third-party rights clearance. Confirm the release policy before public redistribution."
+  },
+  "provenance": {
+    "createdAt": "2026-11-03T20:00:00Z",
+    "createdBy": "Guitar Unhero curriculum expansion session",
+    "method": "authored",
+    "reviewStatus": "unreviewed",
+    "reviewer": null,
+    "notes": "Thumb (p) plays the bass, then index (i), middle (m) and ring (a) pick strings 3, 2 and 1, twice per bar over Am, C, G and Em, ending on low E. Eighth notes at 60 BPM. Used by lesson.fingerpicking.v1."
+  },
+  "transformations": []
+}

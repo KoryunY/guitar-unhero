@@ -1,124 +1,27 @@
 /**
- * Original seed lessons (master spec §3.3–3.4). Technique wording is unreviewed
- * draft content: it must be reviewed by a qualified guitar teacher before it is
- * presented as a reliable public curriculum (reviewStatus: 'unreviewed').
+ * The curriculum (master spec §3.3–3.5). The 14 seed lessons live here; the rest
+ * of the 1.0 path lives in ./curriculum/*.ts, and the order comes from
+ * ./chapters.ts. Shared types and chord helpers are defined in
+ * ./curriculum/core.ts and re-exported below, so this module stays the public
+ * entry point. Technique wording is unreviewed draft content: it must be
+ * reviewed by a qualified guitar teacher before it is presented as a reliable
+ * public curriculum (reviewStatus: 'unreviewed').
  */
-import type { Finger, StringNumber } from '../domain/score';
+import type { StringNumber } from '../domain/score';
 import { midiToPositions, openMidi, pitchClassName } from '../domain/tuning';
+import { CHAPTER_ORDER } from './chapters';
+import { AM, EM } from './curriculum/chords';
+import { BAR, chordDiagram, chordTargets, REST_HAND, RIGHTS, target, type AttemptSpec, type Lesson } from './curriculum/core';
+import { OPEN_CHORDS_LESSONS } from './curriculum/open-chords';
+import { SONGS_RIFFS_LESSONS } from './curriculum/songs-riffs';
+import { BLUES_LEAD_LESSONS } from './curriculum/blues-lead';
+import { BARRE_THEORY_LESSONS } from './curriculum/barre-theory';
+import { HERO_LESSONS } from './curriculum/hero';
 
-export interface Diagram {
-  /** Strings to highlight (e.g. the string being introduced). */
-  highlight: StringNumber[];
-  /** Fretted dot, if any. */
-  dot?: { string: StringNumber; fret: number; finger: Finger };
-  /** Several fretted dots (chord shapes). */
-  dots?: { string: StringNumber; fret: number; finger: Finger }[];
-  /** Open (o) / do-not-play (x) markers at the nut. */
-  markers?: { string: StringNumber; mark: 'o' | 'x' }[];
-  caption: string;
-}
-
-/** A chord shape: frets per string, listed low→high (string 6 → string 1); 'x' = do not play. */
-export interface ChordShape {
-  name: string;
-  lowToHigh: ('x' | number)[];
-  fingersLowToHigh: Finger[];
-}
-
-export function chordDiagram(c: ChordShape): Diagram {
-  const dots: NonNullable<Diagram['dots']> = [];
-  const markers: NonNullable<Diagram['markers']> = [];
-  c.lowToHigh.forEach((f, i) => {
-    const string = (6 - i) as StringNumber;
-    if (f === 'x') markers.push({ string, mark: 'x' });
-    else if (f === 0) markers.push({ string, mark: 'o' });
-    else dots.push({ string, fret: f, finger: c.fingersLowToHigh[i] ?? null });
-  });
-  return {
-    highlight: [],
-    dots,
-    markers,
-    caption: `${c.name}: low-to-high ${c.lowToHigh.join(' ')} (strings 6→1). o = play open, x = do not play.`,
-  };
-}
-
-/** The string-by-string pitches of a chord shape, in pluck order 6 → 1 (skipping x). */
-export function chordTargets(c: ChordShape): AttemptSpec[] {
-  const out: AttemptSpec[] = [];
-  c.lowToHigh.forEach((f, i) => {
-    if (f === 'x') return;
-    const string = (6 - i) as StringNumber;
-    out.push({ targetMidi: openMidi(string) + f, string, fret: f, finger: c.fingersLowToHigh[i] ?? null, required: 1 });
-  });
-  return out;
-}
-
-/** Reviewed chord facts from the master specification §3.3. */
-export const EM: ChordShape = { name: 'E minor (Em)', lowToHigh: [0, 2, 2, 0, 0, 0], fingersLowToHigh: [null, 2, 3, null, null, null] };
-export const AM: ChordShape = { name: 'A minor (Am)', lowToHigh: ['x', 0, 2, 2, 1, 0], fingersLowToHigh: [null, null, 2, 3, 1, null] };
-
-export interface AttemptSpec {
-  targetMidi: number;
-  string: StringNumber;
-  fret: number;
-  finger: Finger;
-  required: number;
-}
-
-export interface LessonStep {
-  id: string;
-  title: string;
-  kind: 'info' | 'demo' | 'attempt' | 'stop-ringing' | 'practice' | 'choice' | 'quiz' | 'tap-pulse' | 'sequence' | 'strum-along' | 'ear-compare';
-  body: string[];
-  diagram?: Diagram;
-  /** Prepare / press / sound / release cues, shown in order. */
-  phases?: { label: string; text: string }[];
-  /** Synth demonstration played only on request; assessment is disabled while it plays. */
-  demoMidis?: number[];
-  demoLabel?: string;
-  attempt?: AttemptSpec;
-  scoreRef?: string;
-  selfCheckLabel?: string;
-  /** Practice step defaults. */
-  practice?: { mode?: 'wait' | 'fixed' | 'listen'; rate?: 0.5 | 0.75 | 1; cueLevel?: 'full' | 'reduced' | 'none'; loop?: { aTick: number; bTick: number } };
-  quiz?: { question: string; options: string[]; answer: number; explain: string };
-  pulse?: { bpm: number; beats: number };
-  /** Notes to pluck one at a time, in order (chord string checks, echo phrases). */
-  sequence?: { targets: AttemptSpec[]; playFirst?: boolean; label: string };
-  strum?: { bpm: number; bars: string[]; shapes: ChordShape[] };
-  ear?: { rounds: number; pool: number[]; seed: number };
-}
-
-export interface Lesson {
-  lessonId: string;
-  version: number;
-  title: string;
-  skillId: string;
-  prerequisiteSkillIds: string[];
-  learningObjective: string;
-  estimatedMinutes: string;
-  equipment: string[];
-  demonstrationAssets: string[];
-  steps: LessonStep[];
-  scoreRef: string | null;
-  supportedAssessments: ('isolated_pitch' | 'attack_time')[];
-  selfCheck: string;
-  successRule: string;
-  fallbacks: string[];
-  rights: { author: string; license: null; evidence: string };
-  reviewStatus: 'unreviewed' | 'teacher_reviewed';
-  teacherReviewer: string | null;
-  nextLessonId: string | null;
-}
-
-const RIGHTS = {
-  author: 'Guitar Unhero project (original draft lesson text)',
-  license: null,
-  evidence: 'Written for this repository; not adapted from a published method book. Not yet teacher-reviewed.',
-};
-
-const REST_HAND =
-  'If anything hurts, stop and rest. Comfortable, relaxed movement matters more than speed.';
+export type { AttemptSpec, ChordShape, Diagram, Lesson, LessonStep, TechniqueKind } from './curriculum/core';
+export { chordDiagram, chordSymbol, chordTargets } from './curriculum/core';
+/** Reviewed chord facts from the master specification §3.3 (the full dictionary lives in curriculum/chords.ts). */
+export { AM, EM } from './curriculum/chords';
 
 const M1_LESSONS: Lesson[] = [
   {
@@ -170,6 +73,7 @@ const M1_LESSONS: Lesson[] = [
         ],
         demoMidis: [64],
         demoLabel: 'Hear the demonstration',
+        funny: 'This is the first note of your legend. No pressure. (Genuinely no pressure — there are thousands more.)',
       },
       {
         id: 'your-turn',
@@ -193,6 +97,7 @@ const M1_LESSONS: Lesson[] = [
         ],
         diagram: { highlight: [1], caption: 'Touch the string lightly to stop it — no pressing needed.' },
         selfCheckLabel: 'I stopped the sound (self-check)',
+        funny: 'Silence: the only note every guitarist can play perfectly from day one. Well, almost.',
       },
       {
         id: 'count-in',
@@ -396,7 +301,6 @@ const M1_LESSONS: Lesson[] = [
 ];
 
 
-const target = (string: StringNumber, fret: number, finger: Finger = null): AttemptSpec => ({ targetMidi: openMidi(string) + fret, string, fret, finger, required: 1 });
 
 const M2_LESSONS: Lesson[] = [
   {
@@ -433,6 +337,7 @@ const M2_LESSONS: Lesson[] = [
         diagram: { highlight: [1, 6], caption: 'Strings 1 (thinnest, high E) and 6 (thickest, low E).' },
         demoMidis: [64, 40],
         demoLabel: 'Hear string 1, then string 6',
+        funny: 'Yes, the “high” string is the one nearest the floor. Guitarists decided this long ago and refuse to discuss it.',
       },
       {
         id: 'quiz-string-1',
@@ -519,6 +424,7 @@ const M2_LESSONS: Lesson[] = [
         body: ['Press Start. After four count-in clicks, tap Space (or the big button) on each of the next eight clicks. No guitar needed.'],
         pulse: { bpm: 60, beats: 8 },
         selfCheckLabel: 'I tapped along (self-check)',
+        funny: 'Tapping along to clicks: the one bit of guitar practice you can do on the bus.',
       },
       {
         id: 'play',
@@ -594,6 +500,7 @@ const M2_LESSONS: Lesson[] = [
         diagram: chordDiagram(EM),
         strum: { bpm: 60, bars: ['Em', 'Em', 'Em', 'Em'], shapes: [EM] },
         selfCheckLabel: 'I strummed Em on each bar (self-check)',
+        funny: 'Your first chord! Em: two fingers, six strings, maximum moodiness.',
       },
       { id: 'next', title: 'What next?', kind: 'choice', body: ['Next: A minor, and changing between the two shapes.'] },
     ],
@@ -665,7 +572,7 @@ const M2_LESSONS: Lesson[] = [
         strum: { bpm: 50, bars: ['Em', 'Em', 'Am', 'Am', 'Em', 'Em', 'Am', 'Am'], shapes: [EM, AM] },
         selfCheckLabel: 'I made the changes (self-check)',
       },
-      { id: 'next', title: 'What next?', kind: 'choice', body: ['Next: put single notes together into your first complete piece.'] },
+      { id: 'next', title: 'What next?', kind: 'choice', body: ['Next: a short ear break — listening and echoing — then more chords.'] },
     ],
   },
   {
@@ -738,6 +645,7 @@ const M2_LESSONS: Lesson[] = [
         scoreRef: 'piece.morning-steps',
         practice: { mode: 'fixed', rate: 0.5, cueLevel: 'none' },
         selfCheckLabel: 'I played it from memory (self-check)',
+        funny: 'No notes on screen. Just you, the guitar, and the faint sound of the app holding its breath.',
       },
       { id: 'next', title: 'What next?', kind: 'choice', body: ['You played a complete piece. Come back tomorrow and play it from memory to make it stick.'] },
     ],
@@ -760,7 +668,7 @@ const M2_LESSONS: Lesson[] = [
     rights: RIGHTS,
     reviewStatus: 'unreviewed',
     teacherReviewer: null,
-    nextLessonId: null,
+    nextLessonId: 'lesson.e-major.v1',
     steps: [
       {
         id: 'higher-lower',
@@ -793,13 +701,12 @@ const M2_LESSONS: Lesson[] = [
         sequence: { targets: [target(1, 1, 1), target(2, 3, 3)], playFirst: true, label: 'Play' },
         selfCheckLabel: 'I found them (self-check)',
       },
-      { id: 'next', title: 'What next?', kind: 'choice', body: ['That completes this set of lessons. Keep Morning Steps alive by playing it from memory now and then.'] },
+      { id: 'next', title: 'What next?', kind: 'choice', body: ['Next: E major — your A minor shape, moved over by one string. Keep Morning Steps alive by playing it from memory now and then.'] },
     ],
   },
 ];
 
 
-const BAR = 3840;
 const M2B_LESSONS: Lesson[] = [
   {
     lessonId: 'lesson.your-hands.v1',
@@ -1079,25 +986,33 @@ const M2B_LESSONS: Lesson[] = [
   },
 ];
 
-// Teacher review: the first complete piece comes before chords (it needs no chord skills).
-const ORDER = [
-  'lesson.meet-guitar.v1',
-  'lesson.high-e.first-sound.v1',
-  'lesson.pulse.v1',
-  'lesson.your-hands.v1',
-  'lesson.high-e.first-frets.v1',
-  'lesson.b-string.first-frets.v1',
-  'lesson.crossing.v1',
-  'lesson.long-notes.v1',
-  'lesson.first-piece.v1',
-  'lesson.chunks-memory.v1',
-  'lesson.open-strings.v1',
-  'lesson.em-chord.v1',
-  'lesson.am-chord.v1',
-  'lesson.listen-remember.v1',
+/**
+ * Every authored lesson. The order (and so each `nextLessonId`) comes from CHAPTERS
+ * (src/learning/chapters.ts). Teacher review: the first complete piece comes before
+ * chords (it needs no chord skills).
+ */
+const AUTHORED: readonly Lesson[] = [
+  ...M1_LESSONS,
+  ...M2_LESSONS,
+  ...M2B_LESSONS,
+  ...OPEN_CHORDS_LESSONS,
+  ...SONGS_RIFFS_LESSONS,
+  ...BLUES_LEAD_LESSONS,
+  ...BARRE_THEORY_LESSONS,
+  ...HERO_LESSONS,
 ];
 
-export const LESSONS: readonly Lesson[] = ORDER.map((id) => [...M1_LESSONS, ...M2_LESSONS, ...M2B_LESSONS].find((l) => l.lessonId === id)!);
+function inChapterOrder(authored: readonly Lesson[], order: readonly string[]): Lesson[] {
+  const orphans = authored.filter((l) => !order.includes(l.lessonId)).map((l) => l.lessonId);
+  if (orphans.length) throw new Error(`Lessons missing from CHAPTERS: ${orphans.join(', ')}`);
+  return order.map((id, i) => {
+    const l = authored.find((x) => x.lessonId === id);
+    if (!l) throw new Error(`CHAPTERS lists unknown lesson ${id}`);
+    return { ...l, nextLessonId: order[i + 1] ?? null };
+  });
+}
+
+export const LESSONS: readonly Lesson[] = inChapterOrder(AUTHORED, CHAPTER_ORDER);
 
 export function findLesson(id: string): Lesson | undefined {
   return LESSONS.find((l) => l.lessonId === id);
