@@ -8,11 +8,14 @@ importers:
 
   .:
     dependencies:
+      '@coderline/alphatab':
+        specifier: 1.8.4
+        version: 1.8.4
       '@fontsource/bebas-neue':
-        specifier: ^5.3.0
+        specifier: 5.3.0
         version: 5.3.0
       '@fontsource/metal-mania':
-        specifier: ^5.3.0
+        specifier: 5.3.0
         version: 5.3.0
       '@mediapipe/tasks-vision':
         specifier: 1.1.1
@@ -68,6 +71,10 @@ packages:
     engines: {node: '>=22.12.0'}
     peerDependencies:
       playwright-core: '>= 1.0.0'
+
+  '@coderline/alphatab@1.8.4':
+    resolution: {integrity: sha512-VN5rfTZZWgA63Ny1aDKCp02k3Qm9CHhg4Q9AnK0kHm7G+fNDNZo36TeToPDFoJ6VpB9+AHcCrHwHFUP1tKqdsw==}
+    engines: {node: '>=6.0.0'}
 
   '@fontsource/bebas-neue@5.3.0':
     resolution: {integrity: sha512-nCxMEb9Bg9sjNWm9TIOsvHKDMLRUfEZPWpLgYu6m9KavZZVSA/WoHzI5wROwqA+eNwEi/PNBAcB5Co7HA3S0Cw==}
@@ -552,6 +559,8 @@ snapshots:
     dependencies:
       axe-core: 4.14.0
       playwright-core: 1.63.0
+
+  '@coderline/alphatab@1.8.4': {}
 
   '@fontsource/bebas-neue@5.3.0': {}
 
