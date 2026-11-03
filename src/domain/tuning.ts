@@ -34,10 +34,10 @@ export function isStringNumber(n: number): n is StringNumber {
   return Number.isInteger(n) && n >= 1 && n <= 6;
 }
 
-/** Sounding MIDI pitch for a string/fret with capo 0. */
-export function fretToMidi(stringNumber: StringNumber, fret: number): number {
+/** Sounding MIDI pitch for a string/fret; frets are counted from the capo (default none). */
+export function fretToMidi(stringNumber: StringNumber, fret: number, capo = 0): number {
   if (!Number.isInteger(fret) || fret < 0) throw new RangeError(`Invalid fret ${fret}`);
-  return OPEN_MIDI_BY_STRING[stringNumber] + fret;
+  return OPEN_MIDI_BY_STRING[stringNumber] + capo + fret;
 }
 
 /**

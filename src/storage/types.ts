@@ -105,7 +105,7 @@ export interface ExportManifest {
   summaries: PracticeSummaryRecord[];
 }
 
-import type { Rights } from '../domain/score';
+import type { Rights, Score } from '../domain/score';
 
 /** Local audio file imported by the learner (never uploaded). */
 export interface AssetRecord {
@@ -128,7 +128,7 @@ export type SongStatus = 'backing only' | 'score attached' | 'candidate transcri
 export interface SongVersionRef {
   arrangementId: string;
   version: number;
-  role: 'original_exercise' | 'transcription_candidate' | 'reviewed_part' | 'simplified_arrangement';
+  role: Score['role'];
   title: string;
   createdAt: string;
   note: string;

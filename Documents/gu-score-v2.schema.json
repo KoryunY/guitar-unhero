@@ -1,0 +1,685 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:guitar-unhero:score:v2",
+  "title": "Guitar Unhero score v2 — v1 plus chord track, sections, capo, techniques and long songs",
+  "description": "Superset of gu-score/1. Adds an optional chord track (shapes + strum patterns; never assessed), song sections, a capo (fret numbers are relative to the capo; pitchMidi is the sounding pitch), per-note technique annotations, an arrangement level, and recordings up to 30 minutes. The melody/riff line in `events` stays monophonic. Unknown properties and unsupported features are still rejected rather than discarded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "arrangementId",
+    "version",
+    "parent",
+    "title",
+    "role",
+    "ppq",
+    "durationTicks",
+    "instrument",
+    "tempoMap",
+    "meterMap",
+    "events",
+    "rights",
+    "provenance",
+    "transformations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "gu-score/2"
+    },
+    "arrangementId": {
+      "$ref": "#/$defs/id"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "parent": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "arrangementId",
+            "version"
+          ],
+          "properties": {
+            "arrangementId": {
+              "$ref": "#/$defs/id"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "role": {
+      "enum": [
+        "original_exercise",
+        "transcription_candidate",
+        "reviewed_part",
+        "simplified_arrangement",
+        "imported_part"
+      ]
+    },
+    "ppq": {
+      "const": 960
+    },
+    "durationTicks": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000000
+    },
+    "instrument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "capo",
+        "maxFret",
+        "strings"
+      ],
+      "properties": {
+        "type": {
+          "const": "six_string_guitar"
+        },
+        "capo": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9,
+          "description": "Capo fret. Event and chord frets are counted from the capo; pitchMidi stays the sounding pitch."
+        },
+        "maxFret": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 24
+        },
+        "strings": {
+          "description": "String numbering is high-to-low; these are sounding open-string MIDI pitches.",
+          "const": [
+            {
+              "number": 1,
+              "openMidi": 64
+            },
+            {
+              "number": 2,
+              "openMidi": 59
+            },
+            {
+              "number": 3,
+              "openMidi": 55
+            },
+            {
+              "number": 4,
+              "openMidi": 50
+            },
+            {
+              "number": 5,
+              "openMidi": 45
+            },
+            {
+              "number": 6,
+              "openMidi": 40
+            }
+          ]
+        }
+      }
+    },
+    "tempoMap": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tick",
+          "bpm"
+        ],
+        "properties": {
+          "tick": {
+            "const": 0
+          },
+          "bpm": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 300
+          }
+        }
+      }
+    },
+    "meterMap": {
+      "const": [
+        {
+          "tick": 0,
+          "numerator": 4,
+          "denominator": 4
+        }
+      ]
+    },
+    "events": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 10000,
+      "items": {
+        "$ref": "#/$defs/noteEvent"
+      }
+    },
+    "rights": {
+      "$ref": "#/$defs/rights"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "createdAt",
+        "createdBy",
+        "method",
+        "reviewStatus",
+        "reviewer"
+      ],
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "method": {
+          "enum": [
+            "authored",
+            "imported",
+            "model_candidate",
+            "derived"
+          ]
+        },
+        "reviewStatus": {
+          "enum": [
+            "unreviewed",
+            "user_reviewed",
+            "teacher_reviewed"
+          ]
+        },
+        "reviewer": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "providerId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "providerVersion": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "modelArtifactSha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 4000
+        }
+      }
+    },
+    "transformations": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "description",
+          "sourceEventIds",
+          "resultEventIds"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "omit",
+              "rhythm_simplify",
+              "octave_shift",
+              "transpose",
+              "fingering_change",
+              "manual_edit",
+              "select_part"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "sourceEventIds": {
+            "$ref": "#/$defs/idList"
+          },
+          "resultEventIds": {
+            "$ref": "#/$defs/idList"
+          }
+        }
+      }
+    },
+    "sourceAudio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assetId",
+        "sha256",
+        "durationSec",
+        "rights",
+        "alignmentStatus",
+        "anchors"
+      ],
+      "properties": {
+        "assetId": {
+          "$ref": "#/$defs/id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "durationSec": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1800
+        },
+        "rights": {
+          "$ref": "#/$defs/rights"
+        },
+        "alignmentStatus": {
+          "enum": [
+            "candidate",
+            "user_reviewed",
+            "teacher_reviewed"
+          ]
+        },
+        "anchors": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tick",
+              "sourceSec"
+            ],
+            "properties": {
+              "tick": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sourceSec": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "arrangementLevel": {
+      "enum": [
+        "easy",
+        "medium",
+        "full"
+      ]
+    },
+    "sections": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tick",
+          "name"
+        ],
+        "properties": {
+          "tick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          }
+        }
+      }
+    },
+    "chords": {
+      "type": "array",
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "startTick",
+          "durationTicks",
+          "name",
+          "frets",
+          "pattern"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "startTick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "durationTicks": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40
+          },
+          "frets": {
+            "description": "Index 0 = string 1 (high E) … index 5 = string 6; null = not played. Relative to the capo.",
+            "type": "array",
+            "minItems": 6,
+            "maxItems": 6,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 24
+                }
+              ]
+            }
+          },
+          "fingers": {
+            "type": "array",
+            "minItems": 6,
+            "maxItems": 6,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4
+                }
+              ]
+            }
+          },
+          "pattern": {
+            "description": "Strum pattern on an eighth-note grid, repeating each bar: D/U = down/up strum, d/u = light, x = muted chuck, - = rest. null = strum once and let ring.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "pattern": "^[DUdux-]{1,32}$"
+              }
+            ]
+          },
+          "techniques": {
+            "$ref": "#/$defs/techniques"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "idList": {
+      "type": "array",
+      "maxItems": 10000,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "noteEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "startTick",
+        "durationTicks",
+        "pitchMidi",
+        "string",
+        "fret",
+        "finger",
+        "sourceEventIds",
+        "assessment"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "note"
+        },
+        "startTick": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durationTicks": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pitchMidi": {
+          "type": "integer",
+          "minimum": 40,
+          "maximum": 88
+        },
+        "string": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "fret": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 24
+        },
+        "finger": {
+          "enum": [
+            null,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "sourceEventIds": {
+          "$ref": "#/$defs/idList"
+        },
+        "assessment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pitch",
+            "attack",
+            "sustain"
+          ],
+          "properties": {
+            "pitch": {
+              "type": "boolean"
+            },
+            "attack": {
+              "type": "boolean"
+            },
+            "sustain": {
+              "const": false
+            }
+          }
+        },
+        "techniques": {
+          "$ref": "#/$defs/techniques"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "fret": {
+                "const": 0
+              }
+            },
+            "required": [
+              "fret"
+            ]
+          },
+          "then": {
+            "properties": {
+              "finger": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "rights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "author",
+        "license",
+        "allowedUses",
+        "sourceUri",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "unknown",
+            "user_declared",
+            "verified",
+            "restricted"
+          ]
+        },
+        "author": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500
+        },
+        "license": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500
+        },
+        "allowedUses": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "local_practice",
+              "private_hosted_analysis",
+              "modify",
+              "redistribute"
+            ]
+          }
+        },
+        "sourceUri": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "evidence": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        }
+      }
+    },
+    "techniques": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "bend",
+              "release",
+              "slide_up",
+              "slide_down",
+              "slide_into",
+              "hammer_on",
+              "pull_off",
+              "vibrato",
+              "palm_mute",
+              "harmonic",
+              "dead_note",
+              "let_ring",
+              "tap"
+            ]
+          },
+          "semitones": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 3
+          }
+        }
+      }
+    }
+  }
+}

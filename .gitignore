@@ -7,3 +7,4 @@ tests/fixtures/generated/
 *.log
 .DS_Store
 public/mediapipe/
+.claude/worktrees/

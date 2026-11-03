@@ -96,3 +96,57 @@ describe('precompiled validators', () => {
     expect(readFileSync(new URL('../../src/generated/validators.js', import.meta.url), 'utf8')).toBe(generate());
   });
 });
+
+describe('gu-score/2 validation (chord track, sections, capo, techniques)', () => {
+  const v2 = (): AnyObj => ({
+    ...clone(),
+    schemaVersion: 'gu-score/2',
+    sections: [{ tick: 0, name: 'Intro' }, { tick: 3840, name: 'Verse' }],
+    chords: [
+      { id: 'c1', startTick: 0, durationTicks: 3840, name: 'Em', frets: [0, 0, 0, 2, 2, 0], pattern: 'D-D-DUDU' },
+      { id: 'c2', startTick: 3840, durationTicks: 3840, name: 'Am', frets: [0, 1, 2, 2, 0, null], pattern: null },
+    ],
+  });
+  const rejected = (mutate: (s: AnyObj) => void, code: string) => {
+    const s = v2();
+    mutate(s);
+    const r = validateScore(s);
+    expect(r.ok).toBe(false);
+    expect(r.issues.map((i) => i.code), JSON.stringify(r.issues)).toContain(code);
+  };
+
+  it('accepts chords, sections and techniques', () => {
+    const s = v2();
+    s.events[0].techniques = [{ kind: 'vibrato' }];
+    const r = validateScore(s);
+    expect(r.issues).toEqual([]);
+  });
+  it('still rejects v2 features in a gu-score/1 file', () => {
+    const s = v2();
+    s.schemaVersion = 'gu-score/1';
+    expect(validateScore(s).ok).toBe(false);
+  });
+  it('accepts a capo when frets are counted from it', () => {
+    const s = v2();
+    s.instrument.capo = 2;
+    for (const e of s.events) e.pitchMidi += 2;
+    expect(validateScore(s).issues).toEqual([]);
+  });
+  it('rejects a capo whose pitches ignore it', () => rejected((s) => (s.instrument.capo = 2), 'semantic.pitch_fret_mismatch'));
+  it('rejects overlapping chords', () => rejected((s) => (s.chords[0].durationTicks = 4000), 'semantic.overlap'));
+  it('rejects an empty chord', () => rejected((s) => (s.chords[0].frets = [null, null, null, null, null, null]), 'semantic.empty_chord'));
+  it('rejects bad strum patterns', () => rejected((s) => (s.chords[0].pattern = 'DXZ'), 'schema.pattern'));
+  it('rejects unordered sections', () => rejected((s) => (s.sections[1].tick = 0), 'semantic.order'));
+  it('allows a chord-only arrangement but not an empty one', () => {
+    const s = v2();
+    s.events = [];
+    expect(validateScore(s).issues).toEqual([]);
+    rejected((x) => { x.events = []; x.chords = []; }, 'semantic.empty');
+  });
+  it('rejects unknown technique kinds', () => rejected((s) => (s.events[0].techniques = [{ kind: 'windmill' }]), 'schema.enum'));
+  it('accepts recordings up to 30 minutes', () => {
+    const s = v2();
+    s.sourceAudio = { assetId: 'a1', sha256: 'a'.repeat(64), durationSec: 1500, rights: s.rights, alignmentStatus: 'candidate', anchors: [{ tick: 0, sourceSec: 0 }, { tick: 960, sourceSec: 0.5 }] };
+    expect(validateScore(s).issues).toEqual([]);
+  });
+});

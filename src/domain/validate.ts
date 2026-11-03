@@ -3,7 +3,7 @@
  * Unknown properties and unsupported features are rejected, never silently dropped.
  */
 import type { ErrorObject } from 'ajv';
-import { validateScoreSchema } from '../generated/validators.js';
+import { validateScoreSchema, validateScoreV2Schema } from '../generated/validators.js';
 import type { Score } from './score';
 import { fretToMidi, isStringNumber } from './tuning';
 
@@ -20,20 +20,21 @@ export type ValidationResult =
 export const MAX_SCORE_BYTES = 2 * 1024 * 1024;
 
 /**
- * Precompiled (scripts/gen-validators.mjs) from Documents/gu-score-v1.schema.json
+ * Precompiled (scripts/gen-validators.mjs) from Documents/gu-score-v1/v2.schema.json
  * with Draft 2020-12 and date-time format checks enabled. No runtime eval.
  */
-function getSchemaValidator() {
-  return validateScoreSchema;
+function getSchemaValidator(value: unknown) {
+  const v = value && typeof value === 'object' ? (value as { schemaVersion?: unknown }).schemaVersion : undefined;
+  return v === 'gu-score/2' ? validateScoreV2Schema : validateScoreSchema;
 }
 
 const HINTS: Record<string, string> = {
-  '/instrument/capo': 'Capo is not supported in gu-score/1; it must be 0.',
+  '/instrument/capo': 'Capo needs gu-score/2 (0–9); in gu-score/1 it must be 0.',
   '/meterMap': 'Only a single 4/4 meter at tick 0 is supported in gu-score/1.',
   '/tempoMap': 'Only one constant tempo at tick 0 is supported in gu-score/1.',
   '/instrument/strings': 'Only standard tuning E4 B3 G3 D3 A2 E2 (strings 1→6) is supported.',
   '/ppq': 'PPQ must be 960.',
-  '/schemaVersion': 'schemaVersion must be "gu-score/1".',
+  '/schemaVersion': 'schemaVersion must be "gu-score/1" or "gu-score/2".',
 };
 
 function describeAjvError(e: ErrorObject): ValidationIssue {
@@ -97,12 +98,13 @@ export function semanticIssues(score: Score): ValidationIssue[] {
           message: `Fret ${ev.fret} exceeds the instrument's maxFret ${score.instrument.maxFret}.`,
         });
       }
-      const expected = fretToMidi(ev.string, ev.fret);
+      const capo = score.instrument.capo;
+      const expected = fretToMidi(ev.string, ev.fret, capo);
       if (expected !== ev.pitchMidi) {
         issues.push({
           path: `${p}/pitchMidi`,
           code: 'semantic.pitch_fret_mismatch',
-          message: `String ${ev.string} fret ${ev.fret} sounds MIDI ${expected}, but pitchMidi is ${ev.pitchMidi}.`,
+          message: `String ${ev.string} fret ${ev.fret}${capo ? ` (capo ${capo})` : ''} sounds MIDI ${expected}, but pitchMidi is ${ev.pitchMidi}.`,
         });
       }
     }
@@ -144,6 +146,31 @@ export function semanticIssues(score: Score): ValidationIssue[] {
     });
   });
 
+  let prevChord: NonNullable<Score['chords']>[number] | null = null;
+  const chordIds = new Set<string>();
+  (score.chords ?? []).forEach((c, i) => {
+    const p = `/chords/${i}`;
+    if (chordIds.has(c.id) || ids.has(c.id)) issues.push({ path: `${p}/id`, code: 'semantic.duplicate_id', message: `Duplicate event ID "${c.id}".` });
+    chordIds.add(c.id);
+    if (c.frets.every((f) => f === null)) issues.push({ path: `${p}/frets`, code: 'semantic.empty_chord', message: 'A chord must play at least one string.' });
+    c.frets.forEach((f, k) => {
+      if (f !== null && f > score.instrument.maxFret) issues.push({ path: `${p}/frets/${k}`, code: 'semantic.fret_range', message: `Fret ${f} exceeds maxFret ${score.instrument.maxFret}.` });
+    });
+    if (c.startTick + c.durationTicks > score.durationTicks) issues.push({ path: p, code: 'semantic.out_of_bounds', message: `Chord "${c.id}" ends after the score.` });
+    if (prevChord) {
+      if (c.startTick < prevChord.startTick) issues.push({ path: p, code: 'semantic.order', message: 'Chords must be ordered by startTick.' });
+      else if (c.startTick < prevChord.startTick + prevChord.durationTicks) issues.push({ path: p, code: 'semantic.overlap', message: `Chord "${c.id}" overlaps "${prevChord.id}".` });
+    }
+    prevChord = c;
+  });
+  (score.sections ?? []).forEach((sec, i) => {
+    if (sec.tick > score.durationTicks) issues.push({ path: `/sections/${i}`, code: 'semantic.out_of_bounds', message: 'Section starts after the end of the score.' });
+    if (i > 0 && sec.tick <= score.sections![i - 1]!.tick) issues.push({ path: `/sections/${i}`, code: 'semantic.order', message: 'Sections must have increasing ticks.' });
+  });
+  if (score.events.length === 0 && !(score.chords?.length)) {
+    issues.push({ path: '/events', code: 'semantic.empty', message: 'The score has no notes and no chords.' });
+  }
+
   if (score.parent && score.parent.arrangementId === score.arrangementId && score.parent.version >= score.version) {
     issues.push({ path: '/parent', code: 'semantic.parent_version', message: 'A parent version of the same arrangement must be older than this version.' });
   }
@@ -177,7 +204,7 @@ export function validateScore(value: unknown): ValidationResult {
   if (nonFinite) {
     return { ok: false, score: null, issues: [{ path: nonFinite, code: 'json.non_finite', message: 'NaN/Infinity are not valid JSON numbers.' }] };
   }
-  const validator = getSchemaValidator();
+  const validator = getSchemaValidator(value);
   if (!validator(value)) {
     const issues = (validator.errors ?? []).map(describeAjvError);
     return { ok: false, score: null, issues };
