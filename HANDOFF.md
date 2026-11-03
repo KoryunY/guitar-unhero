@@ -1,28 +1,47 @@
-# Handoff — M1
+# Handoff — limitation pass + M2
 
-**Branch:** `claude/guitar-unhero-m0-m1-ze1u8y` · **Last verified code commit:** `f9ce795` (this handoff is committed on top of it).
+**Branch:** `claude/guitar-unhero-m0-m1-ze1u8y` · **Last verified code commit:** `4c33e9a` (docs committed on top).
 
-## What works now
-- Welcome/onboarding (handedness, guitar available, listening choice), Setup (device list, permission states with recovery, input meter with gate/peak/clipping, 3 s noise check, applied browser processing, output route, loopback/manual calibration).
-- Tuner: selected-string and chromatic; cents; ≥300 ms lock; no lock in silence/noise; harmonic and far-off guards; reference tone on request (tuner pauses during it).
-- Lessons: `lesson.high-e.first-sound.v1` (per spec §3.3), `lesson.high-e.first-frets.v1` (frets 1/3, release, adjacent-string check), `lesson.b-string.first-frets.v1`. Diagrams, prepare/press/sound/release cues, synthesized demos, specific "I heard X / target Y" feedback, self-checks, evidence-labeled saving.
-- Practice: 4 original scores incl. the supplied fixture; six-lane canvas highway driven by AudioContext time; count-in; metronome; guide synth (headphones) with leakage muting; 50/75/100 %; seek; A–B loop with per-loop feedback; wait/fixed/listen; phrase review with pitch, timing (approximate/calibrated/not graded), coverage and one next action; keyboard controls; text tab list.
-- Simulation mode (labeled everywhere), listening-off mode, IndexedDB persistence, export/import/delete.
+## What changed in this run
+1. **Limitations addressed:**
+   - precompiled validators (CSP without `unsafe-eval`)
+   - code-split bundle
+   - axe accessibility audit (0 violations) with contrast fixes
+   - AudioContext-interruption test
+   - offline service worker
+   - Diagnostics screen (live note log, feedback latency, guided local recording) with the `pnpm test:recordings` harness
+2. **Detector robustness**: a new guitar-like synthetic suite exposed real problems, now fixed. See DECISIONS D-25…D-28 and ACCEPTANCE.
+   - Low strings fired several onsets per note.
+   - New notes were missed while another string rang.
+   - Two ringing strings produced confident wrong pitches.
+3. **M2:**
+   - lessons for units 0–9: meet the guitar, first sound, pulse (tap-along), frets on string 1, string 2, Em, Am + change, *Morning Steps* (original 8-bar piece), listen & remember
+   - chord diagrams with o/x markers
+   - string-by-string chord checks and unassessed strum-along
+   - ear training: higher/lower and echo
+   - recall cue levels, retained skills and adaptation offers
 
-## Tests run (this session)
-- `pnpm check`: typecheck clean; **84/84** Vitest tests passed; build OK.
-- `pnpm test:e2e`: **13/13** passed (incl. real worklet→worker→YIN path with a synthetic E4 WAV via Chromium fake capture).
-- Same results from a fresh clone with `--frozen-lockfile`.
-- Details per criterion: `Documents/ACCEPTANCE.md`.
+## Tests run
+- `pnpm check`: typecheck clean, **107/107** unit tests, build OK.
+- `pnpm test:e2e`: **24/24** (ui, a11y, offline, M2 features, real-pipeline incl. Diagnostics).
+- Per-criterion detail: `Documents/ACCEPTANCE.md`.
 
-## Hardware checks pending (owner)
-AC-05 real unplug, AC-08 real guitar accuracy, AC-09 manual silence, AC-11 feedback latency, AC-13 audio/cursor alignment and drift, AC-18 speaker/headphone leakage. Use the five-minute smoke test in README.md and report: device, browser, expected vs actual.
+## What the owner can do with a guitar (end-to-end validation)
+1. Run the app (`pnpm dev`, or `pnpm build && pnpm preview` for offline), go through Setup.
+2. **Diagnostics → Guided check** on each open string: it reports what it heard. Save the WAV and label for any string that looks wrong and share them (put them in `tests/fixtures/recordings/`).
+3. Follow **Learn** from "Meet the guitar" to "Morning Steps", then play Morning Steps **from memory on another day** — the lesson becomes "retained". That is the app's own version of "learned a piece and reproduced it".
+
+## Hardware checks pending
+- AC-08: real-note accuracy. Use Diagnostics recordings.
+- AC-11: feedback latency on your device. Diagnostics shows it.
+- AC-13: audio/cursor drift.
+- AC-18: speaker leakage.
+- AC-05: real unplug.
 
 ## Blockers
-None in software. Cloud usage/credit consumption for this run is not visible from inside the session — check the account's usage page.
+None in software. Cloud credit usage isn't visible from inside the session.
 
-## Next concrete task (M2 — do not start camera/transcription/accounts)
-1. Act on the owner's smoke-test report first (detector thresholds in `src/audio/dsp/analyzer.ts`, tuner rules in `src/audio/tuner.ts`).
-2. Record a small consented set of original guitar notes and add them as held-out fixtures (GU-101); report AC-08/AC-11.
-3. M2 scope per spec §14.6: reviewed high-E/Em/Am lessons (chord string-by-string checks, no chord-completeness claims), recall mode, progress/retention flow, accessibility audit (axe + keyboard + screen reader), offline cache (GU-104).
-4. Small debts: precompile Ajv (drop CSP `unsafe-eval`), automated test for AudioContext suspension, code-split the bundle, extract UI strings.
+## Next concrete tasks
+1. Tune the detector on the owner's recordings (thresholds in `src/audio/dsp/analyzer.ts`). Turn on `GU_EVAL_STRICT=1` once enough clips exist.
+2. **M3** (spec §14.6): local backing-track import at 100 % speed with a two-anchor manual alignment editor, and arrangement versions. Interface redesign per the owner after M2 review.
+3. Content: teacher review; C/G/D chords; strumming patterns; an accompanied version of Morning Steps (needs a chord-capable score schema revision).
