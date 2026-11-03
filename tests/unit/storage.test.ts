@@ -94,7 +94,7 @@ describe('lesson content', () => {
 });
 
 describe('M2 curriculum', () => {
-  it('chains every lesson in order, ending with listen-and-remember', () => {
+  it('chains every lesson in path order, from meeting the guitar to the final boss', () => {
     const ids = LESSONS.map((l) => l.lessonId);
     expect(ids[0]).toBe('lesson.meet-guitar.v1');
     for (let i = 0; i < LESSONS.length - 1; i++) expect(LESSONS[i]!.nextLessonId).toBe(ids[i + 1]);
