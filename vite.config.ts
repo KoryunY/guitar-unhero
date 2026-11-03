@@ -1,6 +1,9 @@
 /// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Production-only Content Security Policy. The dev server needs inline module
@@ -33,8 +36,29 @@ function productionCsp(): Plugin {
   };
 }
 
+/**
+ * Emits sw.js listing every built file so the whole app (all lazy chunks, the
+ * worklet and the worker) is cached on first visit and works offline afterwards.
+ * Same-origin only; nothing is fetched from elsewhere.
+ */
+function offlineServiceWorker(): Plugin {
+  return {
+    name: 'gu-offline-sw',
+    apply: 'build',
+    generateBundle(_opts, bundle) {
+      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'sw.js');
+      const version = createHash('sha256').update(files.sort().join('|')).digest('hex').slice(0, 12);
+      const source = readFileSync(fileURLToPath(new URL('./src/offline/sw-template.js', import.meta.url)), 'utf8')
+        .replace('__VERSION__', version)
+        .replace('__FILES__', JSON.stringify(['./', ...files.map((f) => `./${f}`)]));
+      this.emitFile({ type: 'asset', fileName: 'sw.js', source });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), productionCsp()],
+  base: './',
+  plugins: [react(), productionCsp(), offlineServiceWorker()],
   server: { port: 5173, strictPort: true },
   preview: { port: 4173, strictPort: true },
   worker: { format: 'es' },

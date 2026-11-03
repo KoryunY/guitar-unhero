@@ -198,3 +198,16 @@ test('an interrupted AudioContext pauses practice and requires Play with a count
   await page.getByTestId('play-pause').click();
   await expect(page.getByTestId('transport-state')).toHaveText(/Count-in/);
 });
+
+test('after one visit the app loads and practises offline (GU-104)', async ({ page, context }) => {
+  await freshStart(page);
+  await page.goto('/#/data');
+  await expect(page.getByTestId('offline-status')).toContainText('Saved for offline use', { timeout: 15_000 });
+  await context.setOffline(true);
+  await page.goto('/#/practice/exercise.high-e-open');
+  await page.reload();
+  await expect(page.getByTestId('practice-player')).toBeVisible();
+  await page.goto('/#/tuner');
+  await expect(page.getByRole('heading', { name: 'Tuner' })).toBeVisible();
+  await context.setOffline(false);
+});

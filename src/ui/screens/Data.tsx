@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { applyUpdate, checkForUpdate, offlineState, onOfflineState, type OfflineState } from '../../offline/register';
 import { useApp } from '../AppContext';
 import { buildExport, parseImport } from '../../storage/exchange';
 import { SummaryCard } from '../practice/SummaryCard';
@@ -10,6 +11,8 @@ export function DataScreen() {
   const [del, setDel] = useState({ progress: true, summaries: true, settings: false });
   const [confirmDel, setConfirmDel] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [offline, setOffline] = useState<OfflineState>(offlineState());
+  useEffect(() => onOfflineState(setOffline), []);
 
   const doExport = () => {
     const manifest = buildExport(settings, Object.values(lessons), summaries);
@@ -111,6 +114,21 @@ export function DataScreen() {
             <SummaryCard record={s} />
           </div>
         ))}
+      </div>
+      <div className="panel small">
+        <h2 style={{ marginTop: 0 }}>Offline use</h2>
+        <p data-testid="offline-status">
+          {offline.status === 'ready' && `Saved for offline use (version ${offline.version ?? '…'}). After this first visit the app works without internet.`}
+          {offline.status === 'installing' && 'Saving the app for offline use…'}
+          {offline.status === 'update-ready' && 'A newer version is downloaded.'}
+          {offline.status === 'dev' && 'Offline copy is only made by the production build (pnpm build && pnpm preview).'}
+          {offline.status === 'unsupported' && 'This browser cannot keep an offline copy.'}
+          {offline.status === 'error' && 'The offline copy could not be saved.'}
+        </p>
+        <div className="row">
+          <button onClick={() => void checkForUpdate()} disabled={offline.status === 'dev' || offline.status === 'unsupported'}>Check for update</button>
+          {offline.status === 'update-ready' && <button className="primary" onClick={() => void applyUpdate()}>Use the new version</button>}
+        </div>
       </div>
       <div className="panel small">
         <h2 style={{ marginTop: 0 }}>Privacy and limits</h2>
