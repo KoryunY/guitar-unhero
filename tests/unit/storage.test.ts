@@ -122,3 +122,21 @@ describe('M2 curriculum', () => {
     expect(findLesson('lesson.first-piece.v1')!.scoreRef).toBe('piece.morning-steps');
   });
 });
+
+describe('teacher-review feedback cases', () => {
+  const open1 = { targetMidi: 64, string: 1 as const, fret: 0, finger: null, required: 1 };
+  const g = { targetMidi: 67, string: 1 as const, fret: 3, finger: 3 as const, required: 1 };
+  it('open string expected but a fretted note heard: something is pressing the string', () => {
+    expect(attemptFeedback(open1, 65).text).toContain('something may be pressing string 1');
+  });
+  it('right fret on the neighbouring string', () => {
+    expect(attemptFeedback(g, 62).text).toContain('fret 3 on string 2 (B), one string away');
+  });
+  it('names the fret instead of higher/lower, and mentions tuning when far off a semitone', () => {
+    expect(attemptFeedback(g, 65.4).text).toMatch(/fret 3 on string 1/);
+    expect(attemptFeedback(g, 65.4).text).toContain('out of tune');
+  });
+  it('octave confusion is phrased as a possible mishearing', () => {
+    expect(attemptFeedback(open1, 76).text).toContain('I may have misheard');
+  });
+});

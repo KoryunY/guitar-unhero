@@ -118,7 +118,7 @@
     "method": "authored",
     "reviewStatus": "unreviewed",
     "reviewer": null,
-    "notes": "Three open high-E notes, each followed by a two-beat rest, at 60 BPM. Used by lesson.high-e.first-sound.v1 step 5 (count-in repetition)."
+    "notes": "Three open high-E notes, each followed by a one-beat rest, at 60 BPM. Used by lesson.high-e.first-sound.v1 step 5 (count-in repetition)."
   },
   "transformations": []
 }

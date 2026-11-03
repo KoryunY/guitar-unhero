@@ -154,7 +154,7 @@ export function SequencePanel({ step, onComplete, evidenceSource }: { step: Less
       const spec = seq.targets[i];
       if (!spec) return;
       if (a.quality !== 'good' || a.pitchMidiFloat === null) {
-        setMsg(a.reasonCodes.includes('clipping') ? 'Too loud for the microphone (clipping). Pluck softer or move back.' : 'I heard a sound but not one clear note. Pluck just that one string and let it ring.');
+        setMsg(a.reasonCodes.includes('clipping') ? 'Too loud for the microphone (clipping). Pluck softer or move back.' : 'I heard a sound but not one clear note. Pluck just that one string; if it sounded dull or buzzy, move your fingertip closer to the fret.');
         return;
       }
       const fb = attemptFeedback(spec, a.pitchMidiFloat);

@@ -437,7 +437,7 @@ export class PracticeController {
       } else if (r.outcome === 'unclear') {
         this.feedback = a.reasonCodes.includes('clipping')
           ? 'That was too loud for the microphone (clipping). Pluck a little softer or move the mic back.'
-          : 'I heard something, but not one clear note. Pluck once and let it ring.';
+          : 'I heard something, but not one clear note. If it sounded dull or buzzy to you, move your fingertip closer to the fret and check no other finger touches the string.';
       }
       this.notify();
     }

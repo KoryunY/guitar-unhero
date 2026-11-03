@@ -14,7 +14,7 @@ import { Icon } from '../icons';
 import { toast, TopBar } from '../kit';
 
 export const CHAPTERS: { title: string; ids: string[] }[] = [
-  { title: 'Getting started', ids: ['lesson.meet-guitar.v1', 'lesson.high-e.first-sound.v1', 'lesson.pulse.v1'] },
+  { title: 'Getting started', ids: ['lesson.meet-guitar.v1', 'lesson.high-e.first-sound.v1', 'lesson.pulse.v1', 'lesson.your-hands.v1'] },
   { title: 'Your first piece', ids: ['lesson.high-e.first-frets.v1', 'lesson.b-string.first-frets.v1', 'lesson.crossing.v1', 'lesson.long-notes.v1', 'lesson.first-piece.v1', 'lesson.chunks-memory.v1'] },
   { title: 'Chords', ids: ['lesson.open-strings.v1', 'lesson.em-chord.v1', 'lesson.am-chord.v1'] },
   { title: 'Ears and memory', ids: ['lesson.listen-remember.v1'] },
@@ -224,7 +224,7 @@ function AttemptPanel({ step, onComplete, evidenceSource }: { step: LessonStep; 
       if (a.simulated !== sim) return;
       lastEvent.current = performance.now();
       if (a.quality !== 'good' || a.pitchMidiFloat === null) {
-        setMsg(a.reasonCodes.includes('clipping') ? 'That was too loud for the microphone (clipping). Pluck a little softer or move the mic back.' : 'I heard a sound but not one clear note. Pluck once and let it ring.');
+        setMsg(a.reasonCodes.includes('clipping') ? 'That was too loud for the microphone (clipping). Pluck a little softer or move the mic back.' : 'I heard a sound but not one clear note. If it sounded dull or buzzy to you, move your fingertip closer to the fret and check no other finger touches the string.');
         return;
       }
       const fb = attemptFeedback(spec, a.pitchMidiFloat);

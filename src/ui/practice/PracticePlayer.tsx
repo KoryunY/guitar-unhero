@@ -53,7 +53,7 @@ export function PracticePlayer({
   /** Embedded in a lesson: inline transport, fewer options. */
   compact?: boolean;
   /** Lesson-provided defaults; otherwise the learner's saved preferences. */
-  initial?: { mode?: PracticeMode; rate?: number; cueLevel?: CueLevel };
+  initial?: { mode?: PracticeMode; rate?: number; cueLevel?: CueLevel; loop?: { aTick: number; bTick: number } };
   /** Recording alignment (song workspace). */
   map?: TimeMap;
   backing?: AudioBuffer | null;
@@ -75,7 +75,11 @@ export function PracticePlayer({
   const opts = { inputSource, outputRoute: settings.outputRoute, guideOn: settings.guideOn, metronomeOn: settings.metronomeOn, deltaIO, simProfile, cueLevel, backingOn, assessmentAllowed } as const;
 
   const controller = useMemo(
-    () => new PracticeController(score, engine, { ...opts }, { mode: initial?.mode ?? settings.practiceMode, rate: initial?.rate ?? settings.practiceRate }, { map, backing }),
+    () => {
+      const c = new PracticeController(score, engine, { ...opts }, { mode: initial?.mode ?? settings.practiceMode, rate: initial?.rate ?? settings.practiceRate }, { map, backing });
+      if (initial?.loop) c.transport.setLoop(initial.loop);
+      return c;
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [score, map, backing],
   );
