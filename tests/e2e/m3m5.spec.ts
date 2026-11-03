@@ -36,11 +36,60 @@ test('write my own notes: edit, save versions, make an easy version, practise it
   await expect(page.getByText(/My tune · v2/)).toBeVisible();
 });
 
-test('import a recording, tap along to line it up, then turn it into reviewed notes (experimental)', async ({ page }) => {
+test('any song: a recording is worked out into easy / medium / full; nothing is checked until it sounds right', async ({ page }) => {
   await onboard(page, 'sim');
   await page.goto('/#/song/new');
   await page.getByTestId('song-file').setInputFiles(MELODY);
   await page.getByTestId('create-song').click();
+  await page.getByTestId('analyze').click();
+  await expect(page.getByTestId('level-pills')).toBeVisible({ timeout: 60_000 });
+  for (const l of ['easy', 'medium', 'full']) await expect(page.getByTestId(`level-${l}`)).toBeEnabled();
+  await expect(page.getByTestId('candidate-banner')).toBeVisible();
+  await expect(page.getByText('Beat found automatically')).toBeVisible();
+  await page.getByTestId('level-full').click();
+  await expect(page.getByTestId('practice-player')).toBeVisible();
+  await expect(page.getByTestId('assessment-source')).toHaveText(/Not checked/);
+  await page.getByTestId('sounds-right').click();
+  await expect(page.getByTestId('candidate-banner')).toHaveCount(0);
+  await page.getByTestId('level-full').click();
+  await page.getByTestId('part').getByRole('button', { name: 'Play the tune' }).click().catch(() => {});
+  await expect(page.getByTestId('assessment-source')).not.toHaveText(/until you review/);
+});
+
+test('any song: pasted tab and chord sheet become three levels with chord shapes and strum patterns', async ({ page }) => {
+  await onboard(page, 'sim');
+  await page.goto('/#/song/new');
+  await page.getByTestId('new-text').click();
+  await page.getByTestId('song-title').fill('Campfire test');
+  await page.getByTestId('song-text').fill(['[Verse]', 'G       D       Em      C', '', '[Chorus]', 'C       G       D       G'].join('\n'));
+  await page.getByTestId('create-song').click();
+  await expect(page.getByTestId('level-pills')).toBeVisible();
+  await expect(page.getByTestId('chord-strip')).toBeVisible();
+  await page.getByTestId('level-medium').click();
+  await expect(page.getByTestId('chord-lane')).toBeVisible();
+  await expect(page.getByRole('img', { name: /Strum pattern: beat 1: down/ }).first()).toBeVisible();
+  await expect(page.getByTestId('section-select')).toBeVisible();
+
+  await page.goto('/#/song/new');
+  await page.getByTestId('new-text').click();
+  await page.getByTestId('song-text').fill(['e|-----0---3---0---|', 'B|---1-------1-----|', 'G|-0-------0-------|', 'D|-----------------|', 'A|-----------------|', 'E|-----------------|'].join('\n'));
+  await page.getByTestId('create-song').click();
+  await expect(page.getByTestId('level-pills')).toBeVisible();
+  await page.getByTestId('level-full').click();
+  await expect(page.getByTestId('upnext')).toBeVisible();
+  await practiceOptions(page, { mode: 'Keep the beat', speed: '100%' });
+  await page.getByTestId('play-pause').click();
+  await expect(page.getByTestId('summary')).toBeVisible({ timeout: 30_000 });
+});
+
+test('import a recording, tap along to line it up, then turn it into reviewed notes (advanced, experimental)', async ({ page }) => {
+  await onboard(page, 'sim');
+  await page.goto('/#/settings');
+  await page.getByTestId('advanced-toggle').check();
+  await page.goto('/#/song/new');
+  await page.getByTestId('song-file').setInputFiles(MELODY);
+  await page.getByTestId('create-song').click();
+  await page.getByTestId('song-tabs').getByRole('button', { name: 'Timing' }).click();
   await expect(page.getByRole('img', { name: /Recording waveform/ })).toBeVisible({ timeout: 15_000 });
 
   // Tap along at 80 BPM (the recording's first beat is at 1 s).

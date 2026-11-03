@@ -8,6 +8,7 @@ import { freshStart, onboard } from './helpers';
 
 const ROUTES = [
   '/#/today', '/#/learn', '/#/learn/lesson.high-e.first-sound.v1', '/#/learn/lesson.em-chord.v1', '/#/learn/lesson.pulse.v1',
+  '/#/learn/lesson.bends.v1', '/#/learn/lesson.pentatonic-box1.v1', '/#/learn/lesson.chord-fills.v1',
   '/#/practice', '/#/practice/piece.morning-steps', '/#/tune', '/#/settings', '/#/settings/mic', '/#/settings/lab', '/#/settings/backup', '/#/song/new',
 ];
 
@@ -49,3 +50,18 @@ test('axe on a phone-sized screen in simulation', async ({ browser }) => {
   }
   await ctx.close();
 });
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`axe: a song's easy / medium / full screen with chord shapes (${theme})`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await onboard(page, 'sim');
+    await page.goto('/#/song/new');
+    await page.getByTestId('new-text').click();
+    await page.getByTestId('song-text').fill(['[Verse]', 'Am      F       C       G', '[Chorus]', 'F       G       Am      Am'].join('\n'));
+    await page.getByTestId('create-song').click();
+    await expect(page.getByTestId('level-pills')).toBeVisible();
+    await scan(page, `song levels ${theme}`);
+    await page.getByTestId('level-full').click();
+    await scan(page, `song full ${theme}`);
+  });
+}

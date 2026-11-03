@@ -41,12 +41,18 @@ export function voiceProgression(chords: readonly SourceChord[], level: Level): 
   for (const p of parsed) if (p && !sounding.includes(p.display)) sounding.push(p.display);
   const allNamed = chords.length > 0 && parsed.every((p) => p !== null);
 
-  if (level === 'easy' && allNamed) {
-    const best = suggestCapo(parsed as ParsedChord[], { maxCapo: 7, maxDifficulty: 2 });
-    const plain = best.capo === 0 ? best : suggestCapo(parsed as ParsedChord[], { maxCapo: 0, maxDifficulty: 2 });
+  if ((level === 'easy' || level === 'medium') && allNamed) {
+    const maxDifficulty = level === 'easy' ? 2 : 3;
+    const best = suggestCapo(parsed as ParsedChord[], { maxCapo: level === 'easy' ? 7 : 5, maxDifficulty });
+    const plain = best.capo === 0 ? best : suggestCapo(parsed as ParsedChord[], { maxCapo: 0, maxDifficulty });
     // Only use a capo when it really helps.
     const pick = best.capo > 0 && best.totalDifficulty + 2 <= plain.totalDifficulty ? best : plain;
-    const voiced = pick.shapes.map((s) => (s.voicing ? fromVoicing(s.voicing, s.shapeName) : undefined));
+    // Shapes are listed per distinct chord: look them up by the sounding name.
+    const byName = new Map(pick.shapes.map((sh) => [sh.original.display, sh]));
+    const voiced = (parsed as ParsedChord[]).map((p) => {
+      const sh = byName.get(p.display);
+      return sh?.voicing ? fromVoicing(sh.voicing, sh.shapeName) : undefined;
+    });
     pick.shapes.forEach((s) => s.simplified && notes.add(`${s.original.display} is played as an easier ${s.shapeName} shape (some notes left out).`));
     const missing = voiced.filter((v) => !v).length;
     if (missing) notes.add(`${missing} chord change(s) had no easy shape and are shown as a rest — keep strumming the previous chord or pause.`);
@@ -54,15 +60,17 @@ export function voiceProgression(chords: readonly SourceChord[], level: Level): 
   }
 
   const maxDifficulty = level === 'easy' ? 2 : level === 'medium' ? 3 : 5;
+  // Prefer easy shapes low on the neck: difficulty first, then how high up the neck it sits.
+  const cost = (v: Voicing) => v.difficulty + 0.25 * Math.max(0, ...v.fretsByString.map((f) => f ?? 0));
   const voiced = chords.map((c, i) => {
     const p = parsed[i];
     if (level === 'full' && c.fretsByString?.some((f) => f !== null)) return fromFrets(c.name, c.fretsByString);
     if (!p) return c.fretsByString?.some((f) => f !== null) ? fromFrets(c.name, c.fretsByString) : undefined;
     if (level === 'full') {
-      const exact = voicingsFor(p)[0];
+      const exact = [...voicingsFor(p)].sort((a, b) => cost(a) - cost(b))[0];
       if (exact) return fromVoicing(exact, p.display);
     }
-    const easy = easiestVoicing(p, { maxDifficulty }) ?? easiestVoicing(p);
+    const easy = easiestVoicing(p, { maxDifficulty, maxFret: 9 }) ?? easiestVoicing(p);
     if (!easy) return undefined;
     easy.simplifications.forEach((n) => notes.add(n));
     if (easy.voicing.difficulty > maxDifficulty) notes.add(`${p.display} has no shape easier than level ${easy.voicing.difficulty} — take it slowly.`);

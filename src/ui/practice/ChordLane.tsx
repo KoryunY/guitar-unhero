@@ -23,7 +23,7 @@ export function ChordLane({ score, tick, leftHanded, playing }: { score: Score; 
           {(cur ?? next) && <ChordBox name={(cur ?? next)!.name} frets={(cur ?? next)!.frets} fingers={(cur ?? next)!.fingers} leftHanded={leftHanded} size={128} />}
         </div>
         {cur && next && (
-          <div className="stack" style={{ gap: 2, alignItems: 'center', opacity: 0.7 }}>
+          <div className="stack" style={{ gap: 2, alignItems: 'center' }}>
             <span className="t-caption" style={{ fontWeight: 800 }}>NEXT</span>
             <ChordBox name={next.name} frets={next.frets} fingers={next.fingers} leftHanded={leftHanded} size={92} />
           </div>
