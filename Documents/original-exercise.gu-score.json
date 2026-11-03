@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "gu-score/1",
+  "arrangementId": "exercise.first-two-strings",
+  "version": 1,
+  "parent": null,
+  "title": "First two strings — original technical fixture",
+  "role": "original_exercise",
+  "ppq": 960,
+  "durationTicks": 7680,
+  "instrument": {
+    "type": "six_string_guitar",
+    "capo": 0,
+    "maxFret": 22,
+    "strings": [
+      {"number": 1, "openMidi": 64},
+      {"number": 2, "openMidi": 59},
+      {"number": 3, "openMidi": 55},
+      {"number": 4, "openMidi": 50},
+      {"number": 5, "openMidi": 45},
+      {"number": 6, "openMidi": 40}
+    ]
+  },
+  "tempoMap": [{"tick": 0, "bpm": 60}],
+  "meterMap": [{"tick": 0, "numerator": 4, "denominator": 4}],
+  "events": [
+    {"id": "n1", "kind": "note", "startTick": 0, "durationTicks": 960, "pitchMidi": 64, "string": 1, "fret": 0, "finger": null, "sourceEventIds": [], "assessment": {"pitch": true, "attack": true, "sustain": false}},
+    {"id": "n2", "kind": "note", "startTick": 960, "durationTicks": 960, "pitchMidi": 65, "string": 1, "fret": 1, "finger": 1, "sourceEventIds": [], "assessment": {"pitch": true, "attack": true, "sustain": false}},
+    {"id": "n3", "kind": "note", "startTick": 1920, "durationTicks": 960, "pitchMidi": 67, "string": 1, "fret": 3, "finger": 3, "sourceEventIds": [], "assessment": {"pitch": true, "attack": true, "sustain": false}},
+    {"id": "n4", "kind": "note", "startTick": 2880, "durationTicks": 960, "pitchMidi": 64, "string": 1, "fret": 0, "finger": null, "sourceEventIds": [], "assessment": {"pitch": true, "attack": true, "sustain": false}},
+    {"id": "n5", "kind": "note", "startTick": 3840, "durationTicks": 960, "pitchMidi": 59, "string": 2, "fret": 0, "finger": null, "sourceEventIds": [], "assessment": {"pitch": true, "attack": true, "sustain": false}},
+    {"id": "n6", "kind": "note", "startTick": 4800, "durationTicks": 960, "pitchMidi": 60, "string": 2, "fret": 1, "finger": 1, "sourceEventIds": [], "assessment": {"pitch": true, "attack": true, "sustain": false}},
+    {"id": "n7", "kind": "note", "startTick": 5760, "durationTicks": 960, "pitchMidi": 62, "string": 2, "fret": 3, "finger": 3, "sourceEventIds": [], "assessment": {"pitch": true, "attack": true, "sustain": false}},
+    {"id": "n8", "kind": "note", "startTick": 6720, "durationTicks": 960, "pitchMidi": 59, "string": 2, "fret": 0, "finger": null, "sourceEventIds": [], "assessment": {"pitch": true, "attack": true, "sustain": false}}
+  ],
+  "rights": {
+    "status": "user_declared",
+    "author": "AI-generated technical exercise prepared for the Guitar Unhero project",
+    "license": null,
+    "allowedUses": ["local_practice", "modify"],
+    "sourceUri": null,
+    "evidence": "Created for this specification without adapting an identified song, recording, or tab. A short generic note pattern may not be copyrightable and is not claimed to be globally unique. Not a third-party rights clearance or teacher-reviewed publication license. Confirm the release policy before public redistribution."
+  },
+  "provenance": {
+    "createdAt": "2026-11-03T00:00:00Z",
+    "createdBy": "Codex specification authoring",
+    "method": "authored",
+    "reviewStatus": "unreviewed",
+    "reviewer": null,
+    "notes": "Two bars of four quarter notes at 60 BPM, eight seconds before count-in. This is a data/timing fixture; use after the corresponding single-string lessons, not as a beginner's first unexplained challenge."
+  },
+  "transformations": []
+}
