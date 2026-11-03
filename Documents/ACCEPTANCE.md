@@ -1,15 +1,34 @@
-# Acceptance report — M1 gate, M2, M3, M4, M5
+# Acceptance report — M1 gate, M2, M3, M4, M5 and the 1.0 candidate
 
-Run date: 2026-11-03 (third run). Environment: Linux cloud container, Node 22.23.4, pnpm 10.28.0, headless Chromium (Playwright 1.63.0 build), **no physical audio/video hardware**. Code checkpoint: `0a324d3` on `claude/guitar-unhero-m0-m1-ze1u8y`.
+Run date: 2026-11-03 (fourth run). Environment: Linux cloud container, Node 22.23.4, pnpm 10.28.0, headless Chromium (Playwright 1.63.0 build), **no physical audio/video hardware**. Branch `claude/guitar-unhero-m0-m1-ze1u8y`.
 
 Status values: **passed**, **failed**, **not run**, **pending hardware**, **partial**.
 
 ## Commands and results
 ```
-pnpm check        # tsc + vitest: 141 passed + build
-pnpm test:e2e     # playwright: 31 passed (ui, a11y, m2, m3–m5, real-pipeline)
+pnpm check        # tsc + vitest: 313 passed + build
+pnpm test:e2e     # playwright: 35 passed (ui, a11y incl. song levels, m2, any-song, m3–m5, real-pipeline)
 pnpm test:recordings  # "no recordings" until real clips are added
 ```
+
+## 1.0 candidate — any song, curriculum, redesign (synthetic evidence only)
+| Check | Result | Evidence |
+|---|---|---|
+| Song analysis: tempo at 92/140 BPM | passed (synthetic) | within 0.5 %; 100 % of beats within 40 ms (`songAnalysis.test.ts`) |
+| Song analysis: tempo drift 100→110 BPM | passed (synthetic) | 100 % of beats within 50 ms |
+| Song analysis: chords (C–G–Am–F, Am–Dm–E7–Am; −30 cents detuned; 44.1/48 kHz) | passed (synthetic) | 100 % of beats; key C major / A minor; tuning −30 c |
+| Song analysis: melody / bass | passed (synthetic) | melody F1 0.974 (±60 ms, exact pitch); bass root 100 % of beats |
+| Song analysis: noise/silence | passed | all "N", no melody, warnings shown |
+| Song analysis: 5-minute song | passed | ~5 s in node; 15 min ≈ 15 s, ~44 MB extra |
+| Real-song analysis accuracy | **pending hardware/data** | no real recordings in the container |
+| Easy/Medium/Full: valid gu-score/2, key never changes, capo in hard keys, melody pitch classes kept, busier strumming per level, chord-only levels, candidates stay unassessed | passed | `songArrange.test.ts` (11) |
+| Importers: MIDI, ASCII tab, chord sheets, MusicXML, Guitar Pro; hostile input | passed | `importers.test.ts`, `chords.test.ts` (94); every voicing checked against its chord tones |
+| Time-stretch 50/75 %: length, pitch (< 10 cents), steady level; 180 s in a few seconds | passed | `stretch.test.ts` |
+| Chord-track strums: patterns per bar, capo pitches | passed | `strums.test.ts` |
+| Curriculum 1.0: 70 lessons / 13 chapters, all scores valid, chord shapes = chord tones, voice lines per event/style, ranks | passed | `curriculum.test.ts` (26) |
+| Browser: recording → "Work it out" → three levels, candidate banner, nothing checked until "Sounds right" | passed | `m3m5.spec.ts` |
+| Browser: pasted chord sheet and tab → levels, chord lane, strum pattern, sections, practice summary | passed | `m3m5.spec.ts` |
+| axe (light/dark/phone/high contrast) incl. song levels and technique/tab lessons | passed | `a11y.spec.ts` |
 
 ## M1 gate (AC-01 … AC-24)
 
