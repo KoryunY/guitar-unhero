@@ -31,3 +31,21 @@ export function writeE4PlucksWav(path: string, sampleRate = 48000): string {
   writeFileSync(path, wavBytes(mix(plucks, whiteNoise(sampleRate, total, 0.0008)), sampleRate));
   return path;
 }
+
+import { guitarLike } from './signals';
+
+/** Original synthetic melody E4 F4 G4 E4 D4 C4 (80 BPM quarter notes, 1 s lead-in) for import/transcription tests. */
+export function writeMelodyWav(path: string, sampleRate = 44100): string {
+  const beat = 60 / 80;
+  const midis = [64, 65, 67, 64, 62, 60, 62, 64];
+  const items = midis.map((m, i) => {
+    const sig = guitarLike(sampleRate, midiHz(m), beat, { seed: i + 2, glideCents: 10 });
+    const fade = Math.round(0.015 * sampleRate);
+    for (let k = 0; k < fade; k++) sig[sig.length - fade + k]! *= 1 - k / fade;
+    return { atSec: 1 + i * beat, sig };
+  });
+  const total = 1 + midis.length * beat + 1;
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, wavBytes(mix(placeAt(sampleRate, total, items), whiteNoise(sampleRate, total, 0.0008)), sampleRate));
+  return path;
+}

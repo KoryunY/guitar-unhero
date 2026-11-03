@@ -154,17 +154,27 @@ export function CameraScreen() {
     }
   });
 
+  const startMarking = () => {
+    setMarking([]);
+    // The marks are tapped on the video, so bring it into view.
+    canvasRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
+  const markingRef = useRef<Pt[] | null>(null);
+  markingRef.current = marking;
   const onTap = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!marking) return;
+    const current = markingRef.current;
+    if (!current) return;
     const r = e.currentTarget.getBoundingClientRect();
     let x = (e.clientX - r.left) / r.width;
     const y = (e.clientY - r.top) / r.height;
     if (mirror) x = 1 - x; // store un-mirrored image coordinates
-    const next = [...marking, { x, y }];
+    const next = [...current, { x, y }];
+    markingRef.current = next;
     if (next.length === 4) {
       const c: Calibration = { corners: next as Calibration['corners'], createdAt: new Date().toISOString() };
       if (!calibrationHomography(c)) {
         toast('Those marks are too close together — try again');
+        markingRef.current = [];
         setMarking([]);
         return;
       }
@@ -174,6 +184,7 @@ export function CameraScreen() {
       } catch {
         /* storage unavailable: keep for this session */
       }
+      markingRef.current = null;
       setMarking(null);
       toast('Fretboard marked');
     } else setMarking(next);
@@ -221,7 +232,7 @@ export function CameraScreen() {
               <Callout kind="info">Tap on the video: <strong>{CORNER_LABELS[marking.length]}</strong> ({marking.length + 1} of 4).</Callout>
             ) : (
               <div className="row">
-                <button type="button" className="btn tonal" onClick={() => setMarking([])} data-testid="camera-mark">{cal ? 'Mark again' : 'Mark the fretboard'}</button>
+                <button type="button" className="btn tonal" onClick={startMarking} data-testid="camera-mark">{cal ? 'Mark again' : 'Mark the fretboard'}</button>
                 {cal && <button type="button" className="btn text" onClick={() => { setCal(null); try { localStorage.removeItem(STORE_KEY); } catch { /* ignore */ } }}>Clear marks</button>}
               </div>
             )}

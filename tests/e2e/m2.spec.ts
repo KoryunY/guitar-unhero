@@ -1,46 +1,40 @@
-/** M2 learning features: quizzes, pulse, chord string checks, strum-along, ear training, recall cues. */
+/** Learning features: quizzes, pulse, chord string checks, strum-along, ear training, recall cues. */
 import { expect, test } from '@playwright/test';
-import { freshStart } from './helpers';
-
-async function startSimulation(page: import('@playwright/test').Page) {
-  await freshStart(page);
-  await page.getByRole('button', { name: 'Try the simulation (no guitar)' }).click();
-  await expect(page.getByTestId('sim-banner')).toBeVisible();
-}
+import { onboard, practiceOptions } from './helpers';
 
 test('meet the guitar: quiz explains and saves', async ({ page }) => {
-  await startSimulation(page);
-  await page.getByRole('button', { name: /2\. Quick check: string 1/ }).click();
+  await onboard(page, 'sim');
+  await page.getByRole('button', { name: 'Got it — next' }).click();
   await page.getByLabel('The thickest string').check();
   await expect(page.getByTestId('quiz-feedback')).toContainText('Not quite');
   await page.getByLabel('The thinnest string').check();
   await expect(page.getByTestId('quiz-feedback')).toContainText('closest to the floor');
-  await expect(page.getByText(/Step saved/)).toBeVisible();
+  await expect(page.getByTestId('step-saved')).toBeVisible();
 });
 
 test('Em: string-by-string check (simulated) never claims the whole chord', async ({ page }) => {
-  await startSimulation(page);
+  await onboard(page, 'sim');
   await page.goto('/#/learn/lesson.em-chord.v1');
-  await page.getByRole('button', { name: /2\. Check each string/ }).click();
+  await page.getByRole('button', { name: 'Got it — next' }).click();
   await expect(page.getByRole('img', { name: /string 5 fret 2 finger 2; string 4 fret 2 finger 3/ })).toBeVisible();
   for (let i = 0; i < 6; i++) await page.getByTestId('sim-correct').click();
   await expect(page.getByTestId('sequence-feedback')).toContainText('All 6 notes heard in order');
-  await page.getByRole('button', { name: /3\. A gentle strum/ }).click();
+  await page.getByRole('button', { name: 'Next step' }).click();
   await expect(page.getByText(/Not assessed: strummed chords/)).toBeVisible();
   await page.getByTestId('strum-start').click();
   await expect(page.getByTestId('strum-now')).toContainText(/Count-in|Em/);
 });
 
 test('Am diagram marks string 6 as not played', async ({ page }) => {
-  await startSimulation(page);
+  await onboard(page, 'sim');
   await page.goto('/#/learn/lesson.am-chord.v1');
   await expect(page.getByRole('img', { name: /A minor \(Am\): low-to-high x 0 2 2 1 0/ })).toBeVisible();
 });
 
 test('pulse: tapping along gives timing feedback', async ({ page }) => {
-  await startSimulation(page);
+  await onboard(page, 'sim');
   await page.goto('/#/learn/lesson.pulse.v1');
-  await page.getByRole('button', { name: /2\. Tap along/ }).click();
+  await page.getByRole('button', { name: 'Got it — next' }).click();
   await page.getByTestId('pulse-start').click();
   await page.waitForTimeout(4300);
   for (let i = 0; i < 8; i++) {
@@ -52,7 +46,7 @@ test('pulse: tapping along gives timing feedback', async ({ page }) => {
 });
 
 test('ear training: six higher/lower rounds produce a score', async ({ page }) => {
-  await startSimulation(page);
+  await onboard(page, 'sim');
   await page.goto('/#/learn/lesson.listen-remember.v1');
   for (let i = 0; i < 6; i++) {
     await page.getByTestId('ear-play').click();
@@ -64,16 +58,19 @@ test('ear training: six higher/lower rounds produce a score', async ({ page }) =
 });
 
 test('recall: Morning Steps from memory hides upcoming notes and records the cue level', async ({ page }) => {
-  await startSimulation(page);
+  await onboard(page, 'sim');
   await page.goto('/#/practice/piece.morning-steps');
-  await page.getByLabel('Fixed tempo').check();
-  await page.getByLabel('100%').check();
-  await page.getByLabel('From memory (beat only)').check();
+  await practiceOptions(page, { mode: 'Keep the beat', speed: '100%', hints: 'From memory' });
   await expect(page.getByRole('img', { name: /From memory: upcoming notes hidden/ })).toBeVisible();
-  await expect(page.getByText('Notes as text (tablature list)')).toBeHidden();
+  await expect(page.getByTestId('upnext')).toContainText('From memory');
   await page.getByTestId('play-pause').click();
   await expect(page.getByTestId('summary')).toBeVisible({ timeout: 45_000 });
-  await expect(page.getByTestId('summary')).toContainText('SIMULATED');
-  // Simulation can never mark a piece retained.
+  await expect(page.getByTestId('summary')).toContainText('Simulated');
   await expect(page.getByTestId('retention')).toHaveCount(0);
+});
+
+test('chunks lesson starts with a two-bar repeat', async ({ page }) => {
+  await onboard(page, 'sim');
+  await page.goto('/#/learn/lesson.chunks-memory.v1');
+  await expect(page.getByTestId('practice-player')).toContainText('repeating a section');
 });

@@ -194,19 +194,25 @@ function SongWorkspace({ songId, view }: { songId: string; view: string }) {
     void reload();
   }, [reload]);
 
+  // Always merge into the latest record: several saves can happen in a row (e.g. a new
+  // version, then its unclear regions), and a stale copy would overwrite the first.
+  const songRef = useRef<SongRecord | null>(null);
+  songRef.current = song ?? null;
   const update = async (patch: Partial<SongRecord>) => {
-    if (!song) return;
-    const next = { ...song, ...patch, updatedAt: new Date().toISOString() };
+    const cur = songRef.current;
+    if (!cur) return;
+    const next = { ...cur, ...patch, updatedAt: new Date().toISOString() };
+    songRef.current = next;
     setSong(next);
     await saveSong(next);
   };
   const addVersion = async (score: Score, note: string, main = true) => {
-    if (!song) return;
+    const cur = songRef.current;
+    if (!cur) return;
     await saveArrangement(score);
     const ref: SongVersionRef = { arrangementId: score.arrangementId, version: score.version, role: score.role, title: score.title, createdAt: new Date().toISOString(), note };
-    const versions = [...song.versions, ref];
     setScores((m) => new Map(m).set(`${score.arrangementId}@${score.version}`, score));
-    await update({ versions, mainArrangementId: main ? score.arrangementId : song.mainArrangementId });
+    await update({ versions: [...cur.versions, ref], mainArrangementId: main ? score.arrangementId : cur.mainArrangementId });
   };
 
   if (song === undefined) return <p className="muted">Loading…</p>;

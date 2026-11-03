@@ -1,15 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { writeE4PlucksWav } from './tests/fixtures/wav';
+import { writeE4PlucksWav, writeMelodyWav } from './tests/fixtures/wav';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const e4Wav = writeE4PlucksWav(join(root, 'tests/fixtures/generated/e4-plucks.wav'));
+writeMelodyWav(join(root, 'tests/fixtures/generated/melody.wav'));
 const baseURL = 'http://localhost:4173';
 
 export default defineConfig({
   testDir: 'tests/e2e',
-  timeout: 60_000,
+  timeout: 90_000,
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],

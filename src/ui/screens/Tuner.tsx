@@ -141,9 +141,9 @@ export function TunerScreen() {
         <>
           <div className="string-chips" role="group" aria-label="String to tune">
             {ORDER.map((s) => (
-              <button key={s} type="button" aria-pressed={str === s} className={tuned.has(s) ? 'tuned' : ''} onClick={() => setStr(s)} aria-label={`String ${s}, ${pitchClassName(openMidi(s))}${tuned.has(s) ? ', tuned' : ''}`}>
+              <button key={s} type="button" aria-pressed={str === s} className={tuned.has(s) ? 'tuned' : ''} onClick={() => setStr(s)}>
                 {pitchClassName(openMidi(s))}
-                <small>{s}{tuned.has(s) ? ' ✓' : ''}</small>
+                <small><span className="sr-only">string </span>{s}{tuned.has(s) ? ' ✓' : ''}<span className="sr-only">{tuned.has(s) ? ' tuned' : ''}</span></small>
               </button>
             ))}
           </div>
